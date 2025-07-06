@@ -456,12 +456,12 @@ impl DisputeValidator {
         // Check if voting period is active
         let current_time = env.ledger().timestamp();
         if current_time < voting_data.voting_start || current_time > voting_data.voting_end {
-            return Err(Error::DisputeVotingPeriodExpired);
+            return Err(Error::MarketClosed);
         }
 
         // Check if voting is still active
         if !matches!(voting_data.status, DisputeVotingStatus::Active) {
-            return Err(Error::DisputeVotingNotAllowed);
+            return Err(Error::InvalidState);
         }
 
         Ok(())
@@ -477,7 +477,7 @@ impl DisputeValidator {
         
         for vote in votes.iter() {
             if vote.user == *user {
-                return Err(Error::DisputeAlreadyVoted);
+                return Err(Error::AlreadyVoted);
             }
         }
 
@@ -487,7 +487,7 @@ impl DisputeValidator {
     /// Validate voting is completed
     pub fn validate_voting_completed(voting_data: &DisputeVoting) -> Result<(), Error> {
         if !matches!(voting_data.status, DisputeVotingStatus::Completed) {
-            return Err(Error::DisputeResolutionConditionsNotMet);
+            return Err(Error::InvalidState);
         }
 
         Ok(())
@@ -502,13 +502,13 @@ impl DisputeValidator {
         let voting_data = DisputeUtils::get_dispute_voting(env, dispute_id)?;
         
         if !matches!(voting_data.status, DisputeVotingStatus::Completed) {
-            return Err(Error::DisputeResolutionConditionsNotMet);
+            return Err(Error::InvalidState);
         }
 
         // Check if fees haven't been distributed yet
         let fee_distribution = DisputeUtils::get_dispute_fee_distribution(env, dispute_id)?;
         if fee_distribution.fees_distributed {
-            return Err(Error::DisputeFeeDistributionFailed);
+            return Err(Error::InvalidState);
         }
 
         Ok(true)
@@ -532,13 +532,13 @@ impl DisputeValidator {
         }
 
         if !has_participated {
-            return Err(Error::DisputeEscalationNotAllowed);
+            return Err(Error::InvalidState);
         }
 
         // Check if escalation already exists
         let escalation = DisputeUtils::get_dispute_escalation(env, dispute_id);
         if escalation.is_some() {
-            return Err(Error::DisputeEscalationNotAllowed);
+            return Err(Error::InvalidState);
         }
 
         Ok(())

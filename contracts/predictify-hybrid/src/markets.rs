@@ -140,23 +140,23 @@ impl MarketValidator {
     ) -> Result<(), Error> {
         // Validate question is not empty
         if question.is_empty() {
-            return Err(Error::InvalidQuestion);
+            return Err(Error::InvalidInput);
         }
 
         // Validate outcomes
         if outcomes.len() < 2 {
-            return Err(Error::InvalidOutcomes);
+            return Err(Error::InvalidOutcome);
         }
 
         for outcome in outcomes.iter() {
             if outcome.is_empty() {
-                return Err(Error::InvalidOutcomes);
+                return Err(Error::InvalidOutcome);
             }
         }
 
         // Validate duration
         if duration_days == 0 || duration_days > 365 {
-            return Err(Error::InvalidDuration);
+            return Err(Error::InvalidInput);
         }
 
         Ok(())

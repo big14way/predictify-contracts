@@ -1,5 +1,5 @@
 use crate::{
-    errors::{Error, ErrorCategory},
+    errors::Error,
     markets::{MarketAnalytics, MarketCreator, MarketStateManager, MarketUtils, MarketValidator},
     types::{Market, OracleConfig, OracleProvider},
 };
@@ -361,11 +361,11 @@ impl ThresholdUtils {
         
         // Ensure within limits
         if adjusted < MIN_DISPUTE_STAKE {
-            return Err(Error::ThresholdBelowMinimum);
+            return Err(Error::InvalidThreshold);
         }
         
         if adjusted > MAX_DISPUTE_THRESHOLD {
-            return Err(Error::ThresholdExceedsMaximum);
+            return Err(Error::InvalidThreshold);
         }
         
         Ok(adjusted)
@@ -454,11 +454,11 @@ impl ThresholdUtils {
     /// Validate dispute threshold
     pub fn validate_dispute_threshold(threshold: i128, market_id: &Symbol) -> Result<bool, Error> {
         if threshold < MIN_DISPUTE_STAKE {
-            return Err(Error::ThresholdBelowMinimum);
+            return Err(Error::InvalidThreshold);
         }
         
         if threshold > MAX_DISPUTE_THRESHOLD {
-            return Err(Error::ThresholdExceedsMaximum);
+            return Err(Error::InvalidThreshold);
         }
         
         Ok(true)
@@ -474,11 +474,11 @@ impl ThresholdValidator {
     /// Validate threshold limits
     pub fn validate_threshold_limits(threshold: i128) -> Result<(), Error> {
         if threshold < MIN_DISPUTE_STAKE {
-            return Err(Error::ThresholdBelowMinimum);
+            return Err(Error::InvalidThreshold);
         }
         
         if threshold > MAX_DISPUTE_THRESHOLD {
-            return Err(Error::ThresholdExceedsMaximum);
+            return Err(Error::InvalidThreshold);
         }
         
         Ok(())

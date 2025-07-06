@@ -39,19 +39,19 @@ impl ValidationError {
         match self {
             ValidationError::InvalidInput => Error::InvalidInput,
             ValidationError::InvalidMarket => Error::MarketNotFound,
-            ValidationError::InvalidOracle => Error::InvalidOracleConfig,
-            ValidationError::InvalidFee => Error::InvalidFeeConfig,
+            ValidationError::InvalidOracle => Error::InvalidConfig,
+            ValidationError::InvalidFee => Error::InvalidConfig,
             ValidationError::InvalidVote => Error::AlreadyVoted,
             ValidationError::InvalidDispute => Error::AlreadyDisputed,
             ValidationError::InvalidAddress => Error::Unauthorized,
-            ValidationError::InvalidString => Error::InvalidQuestion,
+            ValidationError::InvalidString => Error::InvalidInput,
             ValidationError::InvalidNumber => Error::InvalidThreshold,
-            ValidationError::InvalidTimestamp => Error::InvalidDuration,
-            ValidationError::InvalidDuration => Error::InvalidDuration,
+            ValidationError::InvalidTimestamp => Error::InvalidInput,
+            ValidationError::InvalidDuration => Error::InvalidInput,
             ValidationError::InvalidOutcome => Error::InvalidOutcome,
             ValidationError::InvalidStake => Error::InsufficientStake,
             ValidationError::InvalidThreshold => Error::InvalidThreshold,
-            ValidationError::InvalidConfig => Error::InvalidOracleConfig,
+            ValidationError::InvalidConfig => Error::InvalidConfig,
         }
     }
 }
@@ -193,11 +193,11 @@ impl InputValidator {
     /// Validate duration range
     pub fn validate_duration(duration_days: &u32) -> Result<(), ValidationError> {
         if *duration_days < config::MIN_MARKET_DURATION_DAYS {
-            return Err(ValidationError::InvalidDuration);
+            return Err(ValidationError::InvalidInput);
         }
         
         if *duration_days > config::MAX_MARKET_DURATION_DAYS {
-            return Err(ValidationError::InvalidDuration);
+            return Err(ValidationError::InvalidInput);
         }
         
         Ok(())

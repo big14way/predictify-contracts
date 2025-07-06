@@ -38,6 +38,9 @@ use types::ExtensionStats;
 // Fee management module
 pub mod fees;
 use fees::{FeeManager, FeeCalculator, FeeValidator, FeeUtils, FeeTracker, FeeConfigManager};
+
+// Resolution management module
+pub mod resolution;
 use resolution::{OracleResolutionManager, MarketResolutionManager, MarketResolutionAnalytics, OracleResolutionAnalytics, ResolutionUtils};
 
 // Configuration management module
@@ -52,8 +55,6 @@ use utils::{TimeUtils, StringUtils, NumericUtils, ValidationUtils, ConversionUti
 pub mod events;
 use events::{EventEmitter, EventLogger, EventValidator, EventHelpers, EventTestingUtils, EventDocumentation};
 
-pub mod resolution;
-
 pub mod validation;
 use validation::{
     ValidationError, ValidationResult, InputValidator, 
@@ -65,6 +66,10 @@ use validation::{
     ConfigValidator as ValidationConfigValidator, 
     ComprehensiveValidator, ValidationErrorHandler, ValidationDocumentation,
 };
+
+// Reentrancy protection module
+pub mod reentrancy;
+use reentrancy::{ReentrancyGuard, protect_external_call, validate_no_reentrancy};
 
 #[contract]
 pub struct PredictifyHybrid;
@@ -123,7 +128,24 @@ impl PredictifyHybrid {
 
     // Distribute winnings to users
     pub fn claim_winnings(env: Env, user: Address, market_id: Symbol) {
-        match VotingManager::process_claim(&env, user, market_id) {
+        // Require authentication
+        user.require_auth();
+        
+        // Validate no reentrancy
+        validate_no_reentrancy(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        
+        // Protect against reentrancy attacks
+        let result = protect_external_call(
+            &env,
+            symbol_short!("claim_win"),
+            user.clone(),
+            || {
+                // Execute the claim operation
+                VotingManager::process_claim(&env, user, market_id)
+            },
+        );
+        
+        match result {
             Ok(_) => (), // Success
             Err(e) => panic_with_error!(env, e),
         }
@@ -179,7 +201,24 @@ impl PredictifyHybrid {
 
     // Allows users to vote on a market outcome by staking tokens
     pub fn vote(env: Env, user: Address, market_id: Symbol, outcome: String, stake: i128) {
-        match VotingManager::process_vote(&env, user, market_id, outcome, stake) {
+        // Require authentication
+        user.require_auth();
+        
+        // Validate no reentrancy
+        validate_no_reentrancy(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        
+        // Protect against reentrancy attacks
+        let result = protect_external_call(
+            &env,
+            symbol_short!("vote"),
+            user.clone(),
+            || {
+                // Execute the vote operation
+                VotingManager::process_vote(&env, user, market_id, outcome, stake)
+            },
+        );
+        
+        match result {
             Ok(_) => (), // Success
             Err(e) => panic_with_error!(env, e),
         }
@@ -187,7 +226,21 @@ impl PredictifyHybrid {
 
     // Fetch oracle result to determine market outcome
     pub fn fetch_oracle_result(env: Env, market_id: Symbol, oracle_contract: Address) -> String {
-        match resolution::OracleResolutionManager::fetch_oracle_result(&env, &market_id, &oracle_contract) {
+        // Validate no reentrancy
+        validate_no_reentrancy(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        
+        // Protect against reentrancy attacks
+        let result = protect_external_call(
+            &env,
+            symbol_short!("fetch_orc"),
+            oracle_contract.clone(),
+            || {
+                // Execute the oracle fetch operation
+                resolution::OracleResolutionManager::fetch_oracle_result(&env, &market_id, &oracle_contract)
+            },
+        );
+        
+        match result {
             Ok(resolution) => resolution.oracle_result,
             Err(e) => panic_with_error!(env, e),
         }
@@ -195,7 +248,24 @@ impl PredictifyHybrid {
 
     // Allows users to dispute the market result by staking tokens
     pub fn dispute_result(env: Env, user: Address, market_id: Symbol, stake: i128) {
-        match DisputeManager::process_dispute(&env, user, market_id, stake, None) {
+        // Require authentication
+        user.require_auth();
+        
+        // Validate no reentrancy
+        validate_no_reentrancy(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        
+        // Protect against reentrancy attacks
+        let result = protect_external_call(
+            &env,
+            symbol_short!("dispute"),
+            user.clone(),
+            || {
+                // Execute the dispute operation
+                DisputeManager::process_dispute(&env, user, market_id, stake, None)
+            },
+        );
+        
+        match result {
             Ok(_) => (), // Success
             Err(e) => panic_with_error!(env, e),
         }
@@ -1263,3 +1333,6 @@ impl PredictifyHybrid {
     }
 }
 mod test;
+
+#[cfg(test)]
+mod reentrancy_tests;
