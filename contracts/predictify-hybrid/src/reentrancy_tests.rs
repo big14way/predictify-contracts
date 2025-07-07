@@ -53,12 +53,12 @@ mod tests {
         let caller = create_test_address();
 
         // First call should succeed
-        let mut guard1 = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        let result1 = guard1.before_external_call(function_name, caller.clone());
+        let mut guard1 = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        let result1 = guard1.before_external_call(&function_name, &caller);
         assert!(result1.is_ok());
 
         // Second call should fail with reentrancy attack
-        let mut guard2 = ReentrancyGuard::new(&env, function_name, caller.clone());
+        let mut guard2 = ReentrancyGuard::new(&env, &function_name, &caller);
         assert!(guard2.is_err());
         
         // Should be ReentrancyAttack error
@@ -76,12 +76,12 @@ mod tests {
         let caller = create_test_address();
 
         // First function call
-        let mut guard1 = ReentrancyGuard::new(&env, function1, caller.clone()).unwrap();
-        let result1 = guard1.before_external_call(function1, caller.clone());
+        let mut guard1 = ReentrancyGuard::new(&env, &function1, &caller).unwrap();
+        let result1 = guard1.before_external_call(&function1, &caller);
         assert!(result1.is_ok());
 
         // Second function call during first should fail
-        let mut guard2 = ReentrancyGuard::new(&env, function2, caller.clone());
+        let mut guard2 = ReentrancyGuard::new(&env, &function2, &caller);
         assert!(guard2.is_err());
 
         // Clean up first call
@@ -89,7 +89,7 @@ mod tests {
         assert!(result1.is_ok());
         
         // Now second function should succeed
-        let mut guard3 = ReentrancyGuard::new(&env, function2, caller.clone()).unwrap();
+        let mut guard3 = ReentrancyGuard::new(&env, &function2, &caller).unwrap();
         assert!(guard3.is_ok());
     }
 
@@ -99,8 +99,8 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // State consistency check should pass
         let result = guard.check_reentrancy_state();
@@ -115,8 +115,8 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // Simulate failure
         let result = guard.after_external_call(false);
@@ -182,8 +182,8 @@ mod tests {
         let caller = create_test_address();
 
         // Set up an active call
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // Should fail validation
         let result = validate_no_reentrancy(&env);
@@ -201,8 +201,8 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // Call stack should be properly managed
         let result = guard.validate_call_stack();
@@ -219,8 +219,8 @@ mod tests {
 
         // This test would need to be implemented with proper stack depth simulation
         // For now, just test that the basic functionality works
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         let result = guard.validate_call_stack();
         assert!(result.is_ok());
@@ -232,8 +232,8 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // Create expected state
         let expected_state = soroban_sdk::Map::new(&env);
@@ -301,18 +301,18 @@ mod tests {
         let caller2 = create_test_address();
 
         // First user's call
-        let mut guard1 = ReentrancyGuard::new(&env, function_name, caller1.clone()).unwrap();
-        guard1.before_external_call(function_name, caller1.clone()).unwrap();
+        let mut guard1 = ReentrancyGuard::new(&env, &function_name, &caller1).unwrap();
+        guard1.before_external_call(&function_name, &caller1).unwrap();
         
         // Second user's call should also fail due to global reentrancy protection
-        let guard2 = ReentrancyGuard::new(&env, function_name, caller2.clone());
+        let guard2 = ReentrancyGuard::new(&env, &function_name, &caller2);
         assert!(guard2.is_err());
         
         // Clean up first call
         guard1.after_external_call(true).unwrap();
         
         // Now second user should succeed
-        let guard3 = ReentrancyGuard::new(&env, function_name, caller2.clone());
+        let guard3 = ReentrancyGuard::new(&env, &function_name, &caller2);
         assert!(guard3.is_ok());
     }
 
@@ -322,8 +322,8 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard.before_external_call(&function_name, &caller).unwrap();
         
         // Test backup creation
         let backup_result = guard.backup_state();
@@ -340,7 +340,7 @@ mod tests {
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
 
-        let mut guard = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
+        let mut guard = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
         
         // Try to call after_external_call without before_external_call
         let result = guard.after_external_call(true);
@@ -359,17 +359,17 @@ mod tests {
         let caller = create_test_address();
 
         // First call fails
-        let mut guard1 = ReentrancyGuard::new(&env, function_name, caller.clone()).unwrap();
-        guard1.before_external_call(function_name, caller.clone()).unwrap();
+        let mut guard1 = ReentrancyGuard::new(&env, &function_name, &caller).unwrap();
+        guard1.before_external_call(&function_name, &caller).unwrap();
         guard1.after_external_call(false).unwrap(); // Failed call
         
         // Should be able to make new call after failure recovery
-        let guard2 = ReentrancyGuard::new(&env, function_name, caller.clone());
+        let guard2 = ReentrancyGuard::new(&env, &function_name, &caller);
         assert!(guard2.is_ok());
     }
 
     #[test]
-    fn test_macro_usage() {
+    fn test_macro_usage() -> Result<(), Error> {
         let env = create_test_env();
         let function_name = symbol_short!("test_fn");
         let caller = create_test_address();
@@ -384,6 +384,7 @@ mod tests {
         
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42i32);
+        Ok(())
     }
 
     #[test]

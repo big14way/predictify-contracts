@@ -1,8 +1,9 @@
 use soroban_sdk::{contracttype, token, vec, Address, Env, Map, String, Symbol, Vec};
 
-use crate::errors::Error;
-use crate::oracles::{OracleFactory, OracleUtils};
-use crate::types::*;
+use crate::{
+    errors::Error,
+    types::{Market, OracleConfig, OracleProvider, MarketCreationParams},
+};
 
 /// Market management system for Predictify Hybrid contract
 ///
@@ -133,7 +134,7 @@ pub struct MarketValidator;
 impl MarketValidator {
     /// Validate market creation parameters
     pub fn validate_market_params(
-        env: &Env,
+        _env: &Env,
         question: &String,
         outcomes: &Vec<String>,
         duration_days: u32,
@@ -199,7 +200,7 @@ impl MarketValidator {
 
     /// Validate outcome for a market
     pub fn validate_outcome(
-        env: &Env,
+        _env: &Env,
         outcome: &String,
         market_outcomes: &Vec<String>,
     ) -> Result<(), Error> {
@@ -540,7 +541,7 @@ impl MarketTestHelpers {
             ),
             String::from_str(env, "Will BTC go above $25,000 by December 31?"),
             vec![
-                env,
+                &env,
                 String::from_str(env, "yes"),
                 String::from_str(env, "no"),
             ],

@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, panic_with_error, Env, String};
+use soroban_sdk::contracterror;
 
 /// Essential error enum for the Predictify Hybrid contract
 #[contracterror]

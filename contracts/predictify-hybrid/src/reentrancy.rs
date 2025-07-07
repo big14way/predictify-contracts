@@ -17,7 +17,7 @@ pub struct ReentrancyGuard {
 
 impl ReentrancyGuard {
     /// Create a new reentrancy guard for a specific function call
-    pub fn new(env: &Env, _function_name: Symbol, _caller: Address) -> Result<Self, Error> {
+    pub fn new(env: &Env, _function_name: &Symbol, _caller: &Address) -> Result<Self, Error> {
         // Check if we're already in a reentrant call
         let current_status = Self::get_reentrancy_status(env);
         if current_status == REENTRANCY_ENTERED {
@@ -36,7 +36,7 @@ impl ReentrancyGuard {
     }
 
     /// Execute before making external calls
-    pub fn before_external_call(&mut self, _function_name: Symbol, _caller: Address) -> Result<(), Error> {
+    pub fn before_external_call(&mut self, _function_name: &Symbol, _caller: &Address) -> Result<(), Error> {
         // Check current reentrancy status
         let current_status = self.get_reentrancy_status_instance();
         if current_status == REENTRANCY_ENTERED {
@@ -139,7 +139,7 @@ impl ReentrancyGuard {
     fn generate_call_id(env: &Env) -> Symbol {
         let timestamp = env.ledger().timestamp();
         // Create a unique call ID based on timestamp
-        let timestamp_u32 = (timestamp % 1000000) as u32; // Take last 6 digits to ensure uniqueness
+        let _timestamp_u32 = (timestamp % 1000000) as u32; // Take last 6 digits to ensure uniqueness
         // Use a simple hardcoded symbol for Soroban compatibility
         soroban_sdk::symbol_short!("call_id")
     }
@@ -189,8 +189,8 @@ impl ReentrancyGuard {
 #[macro_export]
 macro_rules! with_reentrancy_guard {
     ($env:expr, $function_name:expr, $caller:expr, $body:expr) => {{
-        let mut guard = crate::reentrancy::ReentrancyGuard::new($env, $function_name, $caller)?;
-        guard.before_external_call($function_name, $caller)?;
+        let mut guard = crate::reentrancy::ReentrancyGuard::new($env, &$function_name, &$caller)?;
+        guard.before_external_call(&$function_name, &$caller)?;
         
         let result = $body;
         
@@ -217,8 +217,8 @@ pub fn protect_external_call<T, F>(
 where
     F: FnOnce() -> Result<T, Error>,
 {
-    let mut guard = ReentrancyGuard::new(env, function_name.clone(), caller.clone())?;
-    guard.before_external_call(function_name, caller)?;
+    let mut guard = ReentrancyGuard::new(env, &function_name, &caller)?;
+    guard.before_external_call(&function_name, &caller)?;
     
     let result = operation();
     

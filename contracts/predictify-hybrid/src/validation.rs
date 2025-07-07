@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 
 use soroban_sdk::{
-    contracttype, symbol_short, vec, Address, Env, Map, String, Symbol, Vec,
+    contracttype, vec, Address, Env, Map, String, Symbol, Vec,
 };
 use crate::{
     errors::Error,
@@ -307,7 +307,7 @@ impl MarketValidator {
     pub fn validate_market_for_resolution(
         env: &Env,
         market: &Market,
-        market_id: &Symbol,
+        _market_id: &Symbol,
     ) -> Result<(), ValidationError> {
         // Check if market exists
         if market.question.to_string().is_empty() {
@@ -335,9 +335,9 @@ impl MarketValidator {
 
     /// Validate market for fee collection
     pub fn validate_market_for_fee_collection(
-        env: &Env,
+        _env: &Env,
         market: &Market,
-        market_id: &Symbol,
+        _market_id: &Symbol,
     ) -> Result<(), ValidationError> {
         // Check if market exists
         if market.question.to_string().is_empty() {
@@ -586,12 +586,12 @@ impl VoteValidator {
     }
 
     /// Validate stake amount
-    pub fn validate_stake_amount(stake_amount: &i128) -> Result<(), ValidationError> {
-        if let Err(_) = InputValidator::validate_positive_number(stake_amount) {
+    pub fn validate_stake_amount(_stake_amount: &i128) -> Result<(), ValidationError> {
+        if let Err(_) = InputValidator::validate_positive_number(_stake_amount) {
             return Err(ValidationError::InvalidStake);
         }
         
-        if *stake_amount < config::MIN_VOTE_STAKE {
+        if *_stake_amount < config::MIN_VOTE_STAKE {
             return Err(ValidationError::InvalidStake);
         }
         
@@ -775,7 +775,7 @@ impl ComprehensiveValidator {
     pub fn validate_market_state(
         env: &Env,
         market: &Market,
-        market_id: &Symbol,
+        _market_id: &Symbol,
     ) -> ValidationResult {
         let mut result = ValidationResult::valid();
         

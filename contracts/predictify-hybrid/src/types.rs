@@ -212,7 +212,7 @@ impl MarketExtension {
     }
 
     /// Validate extension parameters
-    pub fn validate(&self, env: &Env) -> Result<(), Error> {
+    pub fn validate(&self, _env: &Env) -> Result<(), Error> {
         if self.additional_days == 0 {
             return Err(Error::InvalidInput);
         }
@@ -470,8 +470,8 @@ impl ReflectorAsset {
     /// Get the asset identifier as a string
     pub fn to_string(&self, env: &Env) -> String {
         match self {
-            ReflectorAsset::Stellar(addr) => String::from_str(env, "stellar_asset"),
-            ReflectorAsset::Other(symbol) => String::from_str(env, "other_asset"),
+            ReflectorAsset::Stellar(_addr) => String::from_str(env, "stellar_asset"),
+            ReflectorAsset::Other(_symbol) => String::from_str(env, "other_asset"),
         }
     }
 
