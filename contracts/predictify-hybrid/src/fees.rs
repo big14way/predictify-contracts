@@ -12,12 +12,10 @@ use crate::types::Market;
 /// - Fee analytics and tracking functions
 /// - Fee configuration management
 /// - Fee safety checks and validation
-
 // ===== FEE CONSTANTS =====
 // Note: These constants are now managed by the config module
 // Use ConfigManager::get_fee_config() to get current values
-
-/// Platform fee percentage (2%)
+///   Platform fee percentage (2%)
 pub const PLATFORM_FEE_PERCENTAGE: i128 = crate::config::DEFAULT_PLATFORM_FEE_PERCENTAGE;
 
 /// Market creation fee (1 XLM = 10,000,000 stroops)
@@ -605,7 +603,7 @@ impl FeeAnalytics {
     pub fn calculate_analytics(env: &Env) -> Result<FeeAnalytics, Error> {
         let total_fees = FeeTracker::get_total_fees_collected(env)?;
         let history = FeeTracker::get_fee_history(env)?;
-        let markets_with_fees = history.len() as u32;
+        let markets_with_fees = history.len();
 
         let average_fee = if markets_with_fees > 0 {
             total_fees / (markets_with_fees as i128)
@@ -649,7 +647,6 @@ impl FeeAnalytics {
 #[cfg(test)]
 pub mod testing {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
 
     /// Create a test fee configuration
     pub fn create_test_fee_config() -> FeeConfig {
@@ -758,7 +755,7 @@ mod tests {
             crate::types::OracleConfig::new(
                 crate::types::OracleProvider::Pyth,
                 String::from_str(&env, "BTC/USD"),
-                25_000_00,
+                2_500_000,
                 String::from_str(&env, "gt"),
             ),
         );
@@ -817,7 +814,7 @@ mod tests {
             crate::types::OracleConfig::new(
                 crate::types::OracleProvider::Pyth,
                 String::from_str(&env, "BTC/USD"),
-                25_000_00,
+                2_500_000,
                 String::from_str(&env, "gt"),
             ),
         );

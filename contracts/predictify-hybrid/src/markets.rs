@@ -13,10 +13,8 @@ use crate::{
 /// - Market analytics and statistics
 /// - Market helper utilities and testing functions
 /// - Market resolution and dispute handling
-
 // ===== MARKET CREATION =====
-
-/// Market creation utilities
+///   Market creation utilities
 pub struct MarketCreator;
 
 impl MarketCreator {
@@ -63,66 +61,39 @@ impl MarketCreator {
     /// Create a market with Reflector oracle
     pub fn create_reflector_market(
         env: &Env,
-        admin: Address,
-        question: String,
-        outcomes: Vec<String>,
-        duration_days: u32,
-        asset_symbol: String,
-        threshold: i128,
-        comparison: String,
+        params: crate::types::ReflectorMarketParams,
     ) -> Result<Symbol, Error> {
         let oracle_config = OracleConfig {
             provider: OracleProvider::Reflector,
-            feed_id: asset_symbol,
-            threshold,
-            comparison,
+            feed_id: params.asset_symbol,
+            threshold: params.threshold,
+            comparison: params.comparison,
         };
 
-        Self::create_market(env, admin, question, outcomes, duration_days, oracle_config)
+        Self::create_market(env, params.admin, params.question, params.outcomes, params.duration_days, oracle_config)
     }
 
     /// Create a market with Pyth oracle
     pub fn create_pyth_market(
         env: &Env,
-        admin: Address,
-        question: String,
-        outcomes: Vec<String>,
-        duration_days: u32,
-        feed_id: String,
-        threshold: i128,
-        comparison: String,
+        params: crate::types::PythMarketParams,
     ) -> Result<Symbol, Error> {
         let oracle_config = OracleConfig {
             provider: OracleProvider::Pyth,
-            feed_id,
-            threshold,
-            comparison,
+            feed_id: params.feed_id,
+            threshold: params.threshold,
+            comparison: params.comparison,
         };
 
-        Self::create_market(env, admin, question, outcomes, duration_days, oracle_config)
+        Self::create_market(env, params.admin, params.question, params.outcomes, params.duration_days, oracle_config)
     }
 
     /// Create a market with Reflector oracle for specific assets
     pub fn create_reflector_asset_market(
         env: &Env,
-        admin: Address,
-        question: String,
-        outcomes: Vec<String>,
-        duration_days: u32,
-        asset_symbol: String,
-        threshold: i128,
-        comparison: String,
+        params: crate::types::ReflectorMarketParams,
     ) -> Result<Symbol, Error> {
-        Self::create_reflector_market(
-            env,
-            admin,
-            question,
-            outcomes,
-            duration_days,
-            asset_symbol,
-            threshold,
-            comparison,
-        )
+        Self::create_reflector_market(env, params)
     }
 }
 
@@ -303,12 +274,12 @@ pub struct MarketAnalytics;
 impl MarketAnalytics {
     /// Get market statistics
     pub fn get_market_stats(market: &Market) -> MarketStats {
-        let total_votes = market.votes.len() as u32;
+        let total_votes = market.votes.len();
         let total_staked = market.total_staked;
         let total_dispute_stakes = market.total_dispute_stakes();
 
         // Calculate outcome distribution
-        let mut outcome_stats = Map::new(&market.votes.env());
+        let mut outcome_stats = Map::new(market.votes.env());
         for (_, outcome) in market.votes.iter() {
             let count = outcome_stats.get(outcome.clone()).unwrap_or(0);
             outcome_stats.set(outcome.clone(), count + 1);
@@ -361,14 +332,14 @@ impl MarketAnalytics {
 
     /// Calculate community consensus
     pub fn calculate_community_consensus(market: &Market) -> CommunityConsensus {
-        let mut vote_counts: Map<String, u32> = Map::new(&market.votes.env());
+        let mut vote_counts: Map<String, u32> = Map::new(market.votes.env());
 
         for (_, outcome) in market.votes.iter() {
             let count = vote_counts.get(outcome.clone()).unwrap_or(0);
             vote_counts.set(outcome.clone(), count + 1);
         }
 
-        let mut consensus_outcome = String::from_str(&market.votes.env(), "");
+        let mut consensus_outcome = String::from_str(market.votes.env(), "");
         let mut max_votes = 0;
         let mut total_votes = 0;
 
@@ -549,7 +520,7 @@ impl MarketTestHelpers {
             OracleConfig::new(
                 OracleProvider::Pyth,
                 String::from_str(env, "BTC/USD"),
-                25_000_00,
+                2_500_000,
                 String::from_str(env, "gt"),
             ),
         )
@@ -718,7 +689,7 @@ mod tests {
             OracleConfig::new(
                 OracleProvider::Pyth,
                 String::from_str(&env, "BTC/USD"),
-                25_000_00,
+                2_500_000,
                 String::from_str(&env, "gt"),
             ),
         );

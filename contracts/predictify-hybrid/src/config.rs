@@ -10,10 +10,8 @@ use crate::errors::Error;
 /// - Configuration validation and helper functions
 /// - Configuration documentation and testing utilities
 /// - Modular configuration system for easier maintenance
-
 // ===== CORE CONSTANTS =====
-
-/// Percentage denominator for calculations (100%)
+///   Percentage denominator for calculations (100%)
 pub const PERCENTAGE_DENOMINATOR: i128 = 100;
 
 /// Maximum market duration in days
@@ -648,10 +646,10 @@ impl ConfigUtils {
     /// Get environment name as string
     pub fn get_environment_name(config: &ContractConfig) -> String {
         match config.network.environment {
-            Environment::Development => String::from_str(&config.network.passphrase.env(), "development"),
-            Environment::Testnet => String::from_str(&config.network.passphrase.env(), "testnet"),
-            Environment::Mainnet => String::from_str(&config.network.passphrase.env(), "mainnet"),
-            Environment::Custom => String::from_str(&config.network.passphrase.env(), "custom"),
+            Environment::Development => String::from_str(config.network.passphrase.env(), "development"),
+            Environment::Testnet => String::from_str(config.network.passphrase.env(), "testnet"),
+            Environment::Mainnet => String::from_str(config.network.passphrase.env(), "mainnet"),
+            Environment::Custom => String::from_str(config.network.passphrase.env(), "custom"),
         }
     }
 
@@ -662,11 +660,11 @@ impl ConfigUtils {
         
         // Create simple summary since string concatenation is complex in no_std
         if fee_percentage == 2 {
-            String::from_str(&env_name.env(), "Development config with 2% fees")
+            String::from_str(env_name.env(), "Development config with 2% fees")
         } else if fee_percentage == 3 {
-            String::from_str(&env_name.env(), "Mainnet config with 3% fees")
+            String::from_str(env_name.env(), "Mainnet config with 3% fees")
         } else {
-            String::from_str(&env_name.env(), "Custom config")
+            String::from_str(env_name.env(), "Custom config")
         }
     }
 
@@ -789,7 +787,6 @@ impl ConfigTesting {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
 
     #[test]
     fn test_config_manager_default_configs() {

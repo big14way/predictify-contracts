@@ -11,11 +11,9 @@ use crate::types::*;
 /// - Extension events and logging
 /// - Extension history tracking
 /// - Extension analytics and reporting
-
 // ===== EXTENSION CONSTANTS =====
 // Note: These constants are now managed by the config module
 // Use ConfigManager::get_extension_config() to get current values
-
 const MAX_EXTENSION_DAYS: u32 = crate::config::MAX_EXTENSION_DAYS;
 const MIN_EXTENSION_DAYS: u32 = crate::config::MIN_EXTENSION_DAYS;
 const EXTENSION_FEE_PER_DAY: i128 = crate::config::EXTENSION_FEE_PER_DAY; // 1 XLM per day in stroops
@@ -85,7 +83,7 @@ impl ExtensionManager {
         let market = MarketStateManager::get_market(env, &market_id)?;
 
         Ok(crate::types::ExtensionStats {
-            total_extensions: market.extension_history.len().try_into().unwrap_or(0),
+            total_extensions: market.extension_history.len(),
             total_extension_days: market.total_extension_days,
             max_extension_days: market.max_extension_days,
             can_extend: ExtensionValidator::can_extend_market(env, &market_id, &market.admin)
@@ -293,7 +291,7 @@ use crate::markets::{MarketStateManager, MarketUtils};
 mod tests {
     use super::*;
     use crate::types::ExtensionStats;
-    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+    use soroban_sdk::testutils::Address as _;
 
     #[test]
     fn test_extension_validation() {

@@ -9,9 +9,7 @@ use crate::errors::Error;
 /// - Price Types: Price data and validation structures
 /// - Validation Types: Input validation and business logic types
 /// - Utility Types: Helper types and conversion utilities
-
 // ===== ORACLE TYPES =====
-
 /// Supported oracle providers for price feeds
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -841,6 +839,47 @@ pub mod conversion {
         }
         Ok(())
     }
+}
+
+// ===== PARAMETER STRUCTS =====
+
+/// Parameters for creating reflector markets
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReflectorMarketParams {
+    pub admin: Address,
+    pub question: String,
+    pub outcomes: Vec<String>,
+    pub duration_days: u32,
+    pub asset_symbol: String,
+    pub threshold: i128,
+    pub comparison: String,
+}
+
+/// Parameters for creating Pyth markets
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PythMarketParams {
+    pub admin: Address,
+    pub question: String,
+    pub outcomes: Vec<String>,
+    pub duration_days: u32,
+    pub feed_id: String,
+    pub threshold: i128,
+    pub comparison: String,
+}
+
+/// Parameters for oracle result events
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OracleResultParams {
+    pub market_id: Symbol,
+    pub result: String,
+    pub provider: String,
+    pub feed_id: String,
+    pub price: i128,
+    pub timestamp: u64,
+    pub confidence: u32,
 }
 
 #[cfg(test)]

@@ -290,7 +290,7 @@ impl ThresholdUtils {
         let market_size_factor = Self::adjust_threshold_by_market_size(env, market_id, BASE_DISPUTE_THRESHOLD)?;
         
         // Calculate activity factor
-        let activity_factor = Self::modify_threshold_by_activity(env, market_id, market.votes.len() as u32)?;
+        let activity_factor = Self::modify_threshold_by_activity(env, market_id, market.votes.len())?;
         
         // Calculate complexity factor (based on number of outcomes)
         let complexity_factor = Self::calculate_complexity_factor(&market)?;
@@ -602,7 +602,7 @@ impl VotingValidator {
         valid_outcomes: &Vec<String>,
     ) -> Result<(), Error> {
         // Validate outcome
-        if let Err(_) = MarketValidator::validate_outcomes(env, valid_outcomes) {
+        if MarketValidator::validate_outcomes(env, valid_outcomes).is_err() {
             return Err(Error::InvalidInput);
         }
 
@@ -802,7 +802,6 @@ impl VotingAnalytics {
 #[cfg(test)]
 pub mod testing {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
 
     /// Create a test vote
     pub fn create_test_vote(env: &Env, user: Address, outcome: String, stake: i128) -> Vote {
@@ -890,6 +889,8 @@ mod tests {
 
     #[test]
     fn test_voting_utils_fee_calculation() {
+        use crate::types::{OracleConfig, OracleProvider};
+        
         let env = Env::default();
         let mut market = Market::new(
             &env,
@@ -916,6 +917,8 @@ mod tests {
 
     #[test]
     fn test_voting_analytics_average_stake() {
+        use crate::types::{OracleConfig, OracleProvider};
+        
         let env = Env::default();
         let mut market = Market::new(
             &env,
@@ -948,6 +951,8 @@ mod tests {
 
     #[test]
     fn test_voting_utils_stats() {
+        use crate::types::{OracleConfig, OracleProvider};
+        
         let env = Env::default();
         let mut market = Market::new(
             &env,

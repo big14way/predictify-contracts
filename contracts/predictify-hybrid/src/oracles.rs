@@ -10,10 +10,8 @@ use crate::types::*;
 /// - Oracle implementations for different providers (Pyth, Reflector)
 /// - Oracle factory pattern for creating oracle instances
 /// - Oracle utilities for price comparison and outcome determination
-
 // ===== ORACLE INTERFACE =====
-
-/// Standard interface for all oracle implementations
+///   Standard interface for all oracle implementations
 pub trait OracleInterface {
     /// Get the current price for a given feed ID
     fn get_price(&self, env: &Env, feed_id: &String) -> Result<i128, Error>;
@@ -53,13 +51,13 @@ impl PythOracle {
 
         // Return different mock prices based on the asset
         if feed_id == &String::from_str(_env, "BTC/USD") {
-            Ok(26_000_00) // $26,000 for BTC
+            Ok(2_600_000) // $26,000 for BTC
         } else if feed_id == &String::from_str(_env, "ETH/USD") {
-            Ok(3_200_00) // $3,200 for ETH
+            Ok(320_000) // $3,200 for ETH
         } else if feed_id == &String::from_str(_env, "XLM/USD") {
             Ok(12_00) // $0.12 for XLM
         } else {
-            Ok(26_000_00) // Default to BTC price
+            Ok(2_600_000) // Default to BTC price
         }
     }
 
@@ -360,7 +358,7 @@ impl OracleUtils {
         }
 
         // Check for reasonable price range (1 cent to $1M)
-        if price < 1 || price > 100_000_000_00 {
+        if !(1..=10_000_000_000).contains(&price) {
             return Err(Error::InvalidThreshold);
         }
 
@@ -420,8 +418,8 @@ mod tests {
         let env = Env::default();
 
         // Test price comparison
-        let price = 30_000_00; // $30k
-        let threshold = 25_000_00; // $25k
+        let price = 3_000_000; // $30k
+        let threshold = 2_500_000; // $25k
 
         // Test greater than
         let gt_result =

@@ -15,9 +15,7 @@ use crate::{
 /// - Resolution analytics and statistics
 /// - Resolution helper utilities and testing functions
 /// - Resolution state management and tracking
-
 // ===== RESOLUTION TYPES =====
-
 /// Resolution state enumeration
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[contracttype]
@@ -450,12 +448,10 @@ impl MarketResolutionAnalytics {
             } else {
                 ResolutionMethod::OracleOnly
             }
+        } else if community_consensus.percentage > 80 && community_consensus.total_votes >= 10 {
+            ResolutionMethod::CommunityOnly
         } else {
-            if community_consensus.percentage > 80 && community_consensus.total_votes >= 10 {
-                ResolutionMethod::CommunityOnly
-            } else {
-                ResolutionMethod::OracleOnly
-            }
+            ResolutionMethod::OracleOnly
         }
     }
 
@@ -468,12 +464,12 @@ impl MarketResolutionAnalytics {
         match method {
             ResolutionMethod::OracleOnly => 85,
             ResolutionMethod::CommunityOnly => {
-                let base_confidence = community_consensus.percentage as u32;
+                let base_confidence = community_consensus.percentage;
                 base_confidence.min(90)
             }
             ResolutionMethod::Hybrid => {
                 let oracle_confidence = 85;
-                let community_confidence = community_consensus.percentage as u32;
+                let community_confidence = community_consensus.percentage;
                 ((oracle_confidence + community_confidence) / 2).min(95)
             }
             ResolutionMethod::AdminOverride => 100,
@@ -540,11 +536,7 @@ impl ResolutionUtils {
     /// Calculate resolution time
     pub fn calculate_resolution_time(env: &Env, market: &Market) -> u64 {
         let current_time = env.ledger().timestamp();
-        if current_time > market.end_time {
-            current_time - market.end_time
-        } else {
-            0
-        }
+        current_time.saturating_sub(market.end_time)
     }
 
     /// Validate resolution parameters
@@ -701,13 +693,15 @@ mod tests {
 
     #[test]
     fn test_resolution_utils_get_state() {
+        use crate::types::OracleConfig;
+        
         let env = Env::default();
         let admin = Address::generate(&env);
         let market = Market::new(
             &env,
             admin,
             String::from_str(&env, "Test Market"),
-            vec![&env, String::from_str(&env, "yes"), String::from_str(&env, "no")],
+            soroban_sdk::vec![&env, String::from_str(&env, "yes"), String::from_str(&env, "no")],
             env.ledger().timestamp() + 86400,
             OracleConfig {
                 provider: OracleProvider::Pyth,
@@ -750,6 +744,9 @@ mod tests {
 
     #[test]
     fn test_resolution_performance() {
+        use crate::test::PredictifyTest;
+        use crate::PredictifyHybridClient;
+        
         let test = PredictifyTest::setup();
         test.create_test_market();
 

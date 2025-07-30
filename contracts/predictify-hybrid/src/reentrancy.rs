@@ -11,6 +11,7 @@ const CALL_COUNT_KEY: Symbol = symbol_short!("CALL_CNT");
 
 pub struct ReentrancyGuard {
     env: Env,
+    #[allow(dead_code)]
     call_id: Symbol,
     is_active: bool,
 }
@@ -189,7 +190,7 @@ impl ReentrancyGuard {
 #[macro_export]
 macro_rules! with_reentrancy_guard {
     ($env:expr, $function_name:expr, $caller:expr, $body:expr) => {{
-        let mut guard = crate::reentrancy::ReentrancyGuard::new($env, &$function_name, &$caller)?;
+        let mut guard = $crate::reentrancy::ReentrancyGuard::new($env, &$function_name, &$caller)?;
         guard.before_external_call(&$function_name, &$caller)?;
         
         let result = $body;

@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::errors::Error;
-use crate::oracles::ReflectorOracle;
+use crate::oracles::{ReflectorOracle, OracleInterface};
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
     token::{Client as TokenClient, StellarAssetClient},
@@ -33,18 +33,18 @@ impl<'a> TokenTest<'a> {
     }
 }
 
-struct PredictifyTest<'a> {
-    env: Env,
-    contract_id: Address,
-    token_test: TokenTest<'a>,
-    admin: Address,
-    user: Address,
-    market_id: Symbol,
-    pyth_contract: Address,
+pub struct PredictifyTest<'a> {
+    pub env: Env,
+    pub contract_id: Address,
+    pub token_test: TokenTest<'a>,
+    pub admin: Address,
+    pub user: Address,
+    pub market_id: Symbol,
+    pub pyth_contract: Address,
 }
 
 impl<'a> PredictifyTest<'a> {
-    fn setup() -> Self {
+    pub fn setup() -> Self {
         let token_test = TokenTest::setup();
         let env = token_test.env.clone();
 
@@ -87,7 +87,7 @@ impl<'a> PredictifyTest<'a> {
         }
     }
 
-    fn create_test_market(&self) {
+    pub fn create_test_market(&self) {
         let client = PredictifyHybridClient::new(&self.env, &self.contract_id);
 
         // Create market outcomes

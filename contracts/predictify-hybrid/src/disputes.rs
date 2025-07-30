@@ -950,7 +950,6 @@ impl DisputeAnalytics {
 #[cfg(test)]
 pub mod testing {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
 
     /// Create a test dispute
     pub fn create_test_dispute(
@@ -1018,10 +1017,7 @@ pub mod testing {
 // ===== HELPER STRUCTURES =====
 
 /// Represents community consensus data
-
-
 // ===== MODULE TESTS =====
-
 #[cfg(test)]
 mod tests {
     use super::*;

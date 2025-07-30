@@ -5,6 +5,14 @@ use soroban_sdk::{
 };
 use alloc::string::ToString;
 
+// Global allocator for wasm32 target
+#[cfg(target_arch = "wasm32")]
+use linked_list_allocator::LockedHeap;
+
+#[cfg(target_arch = "wasm32")]
+#[global_allocator]
+static ALLOCATOR: LockedHeap = LockedHeap::empty();
+
 // Error management module
 pub mod errors;
 use errors::Error;
@@ -288,34 +296,22 @@ impl PredictifyHybrid {
 
     // Get oracle resolution for a market
     pub fn get_oracle_resolution(env: Env, market_id: Symbol) -> Option<resolution::OracleResolution> {
-        match OracleResolutionManager::get_oracle_resolution(&env, &market_id) {
-            Ok(resolution) => resolution,
-            Err(_) => None,
-        }
+        OracleResolutionManager::get_oracle_resolution(&env, &market_id).unwrap_or_default()
     }
 
     // Get market resolution for a market
     pub fn get_market_resolution(env: Env, market_id: Symbol) -> Option<resolution::MarketResolution> {
-        match MarketResolutionManager::get_market_resolution(&env, &market_id) {
-            Ok(resolution) => resolution,
-            Err(_) => None,
-        }
+        MarketResolutionManager::get_market_resolution(&env, &market_id).unwrap_or_default()
     }
 
     // Get resolution analytics
     pub fn get_resolution_analytics(env: Env) -> resolution::ResolutionAnalytics {
-        match resolution::MarketResolutionAnalytics::calculate_resolution_analytics(&env) {
-            Ok(analytics) => analytics,
-            Err(_) => resolution::ResolutionAnalytics::default(),
-        }
+        resolution::MarketResolutionAnalytics::calculate_resolution_analytics(&env).unwrap_or_default()
     }
 
     // Get oracle statistics
     pub fn get_oracle_stats(env: Env) -> resolution::OracleStats {
-        match resolution::OracleResolutionAnalytics::get_oracle_stats(&env) {
-            Ok(stats) => stats,
-            Err(_) => resolution::OracleStats::default(),
-        }
+        resolution::OracleResolutionAnalytics::get_oracle_stats(&env).unwrap_or_default()
     }
 
     // Validate resolution for a market
@@ -413,18 +409,12 @@ impl PredictifyHybrid {
 
     // Check if user has disputed a market
     pub fn has_user_disputed(env: Env, market_id: Symbol, user: Address) -> bool {
-        match DisputeManager::has_user_disputed(&env, market_id, user) {
-            Ok(has_disputed) => has_disputed,
-            Err(_) => false,
-        }
+        DisputeManager::has_user_disputed(&env, market_id, user).unwrap_or_default()
     }
 
     // Get user's dispute stake for a market
     pub fn get_user_dispute_stake(env: Env, market_id: Symbol, user: Address) -> i128 {
-        match DisputeManager::get_user_dispute_stake(&env, market_id, user) {
-            Ok(stake) => stake,
-            Err(_) => 0,
-        }
+        DisputeManager::get_user_dispute_stake(&env, market_id, user).unwrap_or_default()
     }
 
     // Clean up market storage
@@ -446,6 +436,7 @@ impl PredictifyHybrid {
     }
 
     // Helper function to create a market with Reflector oracle
+    #[allow(clippy::too_many_arguments)]
     pub fn create_reflector_market(
         env: Env,
         admin: Address,
@@ -456,8 +447,7 @@ impl PredictifyHybrid {
         threshold: i128,
         comparison: String,
     ) -> Symbol {
-        match MarketCreator::create_reflector_market(
-            &env,
+        let params = ReflectorMarketParams {
             admin,
             question,
             outcomes,
@@ -465,13 +455,15 @@ impl PredictifyHybrid {
             asset_symbol,
             threshold,
             comparison,
-        ) {
+        };
+        match MarketCreator::create_reflector_market(&env, params) {
             Ok(market_id) => market_id,
             Err(e) => panic_with_error!(env, e),
         }
     }
 
     // Helper function to create a market with Pyth oracle
+    #[allow(clippy::too_many_arguments)]
     pub fn create_pyth_market(
         env: Env,
         admin: Address,
@@ -482,8 +474,7 @@ impl PredictifyHybrid {
         threshold: i128,
         comparison: String,
     ) -> Symbol {
-        match MarketCreator::create_pyth_market(
-            &env,
+        let params = PythMarketParams {
             admin,
             question,
             outcomes,
@@ -491,13 +482,15 @@ impl PredictifyHybrid {
             feed_id,
             threshold,
             comparison,
-        ) {
+        };
+        match MarketCreator::create_pyth_market(&env, params) {
             Ok(market_id) => market_id,
             Err(e) => panic_with_error!(env, e),
         }
     }
 
     // Helper function to create a market with Reflector oracle for specific assets
+    #[allow(clippy::too_many_arguments)]
     pub fn create_reflector_asset_market(
         env: Env,
         admin: Address,
@@ -508,8 +501,7 @@ impl PredictifyHybrid {
         threshold: i128,
         comparison: String,
     ) -> Symbol {
-        match MarketCreator::create_reflector_asset_market(
-            &env,
+        let params = ReflectorMarketParams {
             admin,
             question,
             outcomes,
@@ -517,7 +509,8 @@ impl PredictifyHybrid {
             asset_symbol,
             threshold,
             comparison,
-        ) {
+        };
+        match MarketCreator::create_reflector_asset_market(&env, params) {
             Ok(market_id) => market_id,
             Err(e) => panic_with_error!(env, e),
         }
@@ -563,18 +556,12 @@ impl PredictifyHybrid {
         market_id: Symbol,
         additional_days: u32,
     ) -> bool {
-        match ExtensionValidator::validate_extension_conditions(&env, &market_id, additional_days) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        ExtensionValidator::validate_extension_conditions(&env, &market_id, additional_days).is_ok()
     }
 
     /// Check extension limits for a market
     pub fn check_extension_limits(env: Env, market_id: Symbol, additional_days: u32) -> bool {
-        match ExtensionValidator::check_extension_limits(&env, &market_id, additional_days) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        ExtensionValidator::check_extension_limits(&env, &market_id, additional_days).is_ok()
     }
 
     /// Emit extension event for monitoring
@@ -595,18 +582,12 @@ impl PredictifyHybrid {
 
     /// Check if admin can extend market
     pub fn can_extend_market(env: Env, market_id: Symbol, admin: Address) -> bool {
-        match ExtensionManager::can_extend_market(&env, market_id, admin) {
-            Ok(can_extend) => can_extend,
-            Err(_) => false,
-        }
+        ExtensionManager::can_extend_market(&env, market_id, admin).unwrap_or_default()
     }
 
     /// Handle extension fees
     pub fn handle_extension_fees(env: Env, market_id: Symbol, additional_days: u32) -> i128 {
-        match ExtensionUtils::handle_extension_fees(&env, &market_id, additional_days) {
-            Ok(fee_amount) => fee_amount,
-            Err(_) => 0,
-        }
+        ExtensionUtils::handle_extension_fees(&env, &market_id, additional_days).unwrap_or_default()
     }
 
     /// Get extension statistics for a market
@@ -657,10 +638,7 @@ impl PredictifyHybrid {
 
     /// Calculate dispute outcome based on voting
     pub fn calculate_dispute_outcome(env: Env, dispute_id: Symbol) -> bool {
-        match DisputeManager::calculate_dispute_outcome(&env, dispute_id) {
-            Ok(outcome) => outcome,
-            Err(_) => false,
-        }
+        DisputeManager::calculate_dispute_outcome(&env, dispute_id).unwrap_or_default()
     }
 
     /// Distribute dispute fees to winners
@@ -717,10 +695,7 @@ impl PredictifyHybrid {
 
     /// Validate dispute resolution conditions
     pub fn validate_dispute_resolution(env: Env, dispute_id: Symbol) -> bool {
-        match DisputeManager::validate_dispute_resolution_conditions(&env, dispute_id) {
-            Ok(valid) => valid,
-            Err(_) => false,
-        }
+        DisputeManager::validate_dispute_resolution_conditions(&env, dispute_id).unwrap_or_default()
     }
 
     // ===== DYNAMIC THRESHOLD FUNCTIONS =====
@@ -743,26 +718,17 @@ impl PredictifyHybrid {
 
     /// Adjust threshold by market size
     pub fn adjust_threshold_by_market_size(env: Env, market_id: Symbol, base_threshold: i128) -> i128 {
-        match voting::ThresholdUtils::adjust_threshold_by_market_size(&env, &market_id, base_threshold) {
-            Ok(adjustment) => adjustment,
-            Err(_) => 0,
-        }
+        voting::ThresholdUtils::adjust_threshold_by_market_size(&env, &market_id, base_threshold).unwrap_or_default()
     }
 
     /// Modify threshold by activity level
     pub fn modify_threshold_by_activity(env: Env, market_id: Symbol, activity_level: u32) -> i128 {
-        match voting::ThresholdUtils::modify_threshold_by_activity(&env, &market_id, activity_level) {
-            Ok(adjustment) => adjustment,
-            Err(_) => 0,
-        }
+        voting::ThresholdUtils::modify_threshold_by_activity(&env, &market_id, activity_level).unwrap_or_default()
     }
 
     /// Validate dispute threshold
     pub fn validate_dispute_threshold(threshold: i128, market_id: Symbol) -> bool {
-        match voting::ThresholdUtils::validate_dispute_threshold(threshold, &market_id) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        voting::ThresholdUtils::validate_dispute_threshold(threshold, &market_id).is_ok()
     }
 
     /// Get threshold adjustment factors
@@ -1079,24 +1045,29 @@ impl PredictifyHybrid {
     }
 
     /// Validate event structure
-    pub fn validate_event_structure(_env: Env, event_type: String, _event_data: String) -> bool {
-        match event_type.to_string().as_str() {
-            "MarketCreated" => {
-                // In a real implementation, you would deserialize and validate
-                true
+    pub fn validate_event_structure(env: Env, event_type: String, _event_data: String) -> bool {
+        let valid_event_types = vec![
+            &env,
+            String::from_str(&env, "MarketCreated"),
+            String::from_str(&env, "VoteCast"),
+            String::from_str(&env, "OracleResult"),
+            String::from_str(&env, "MarketResolved"),
+            String::from_str(&env, "DisputeCreated"),
+            String::from_str(&env, "DisputeResolved"),
+            String::from_str(&env, "FeeCollected"),
+            String::from_str(&env, "ExtensionRequested"),
+            String::from_str(&env, "ConfigUpdated"),
+            String::from_str(&env, "ErrorLogged"),
+            String::from_str(&env, "PerformanceMetric"),
+        ];
+        
+        // Check if event_type is in the list of valid types
+        for valid_type in valid_event_types.iter() {
+            if event_type == valid_type {
+                return true;
             }
-            "VoteCast" => true,
-            "OracleResult" => true,
-            "MarketResolved" => true,
-            "DisputeCreated" => true,
-            "DisputeResolved" => true,
-            "FeeCollected" => true,
-            "ExtensionRequested" => true,
-            "ConfigUpdated" => true,
-            "ErrorLogged" => true,
-            "PerformanceMetric" => true,
-            _ => false,
         }
+        false
     }
 
     /// Get event documentation
@@ -1123,62 +1094,63 @@ impl PredictifyHybrid {
 
     /// Validate test event structure
     pub fn validate_test_event(env: Env, event_type: String) -> bool {
-        match event_type.to_string().as_str() {
-            "MarketCreated" => {
-                let test_event = EventTestingUtils::create_test_market_created_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                    &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "VoteCast" => {
-                let test_event = EventTestingUtils::create_test_vote_cast_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                    &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "OracleResult" => {
-                let test_event = EventTestingUtils::create_test_oracle_result_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "MarketResolved" => {
-                let test_event = EventTestingUtils::create_test_market_resolved_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "DisputeCreated" => {
-                let test_event = EventTestingUtils::create_test_dispute_created_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                    &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "FeeCollected" => {
-                let test_event = EventTestingUtils::create_test_fee_collected_event(
-                    &env,
-                    &Symbol::new(&env, "test"),
-                    &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-                );
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "ErrorLogged" => {
-                let test_event = EventTestingUtils::create_test_error_logged_event(&env);
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            "PerformanceMetric" => {
-                let test_event = EventTestingUtils::create_test_performance_metric_event(&env);
-                EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
-            }
-            _ => false,
+        let market_created = String::from_str(&env, "MarketCreated");
+        let vote_cast = String::from_str(&env, "VoteCast");
+        let oracle_result = String::from_str(&env, "OracleResult");
+        let market_resolved = String::from_str(&env, "MarketResolved");
+        let dispute_created = String::from_str(&env, "DisputeCreated");
+        let fee_collected = String::from_str(&env, "FeeCollected");
+        let error_logged = String::from_str(&env, "ErrorLogged");
+        let performance_metric = String::from_str(&env, "PerformanceMetric");
+        
+        if event_type == market_created {
+            let test_event = EventTestingUtils::create_test_market_created_event(
+                &env,
+                &Symbol::new(&env, "test"),
+                &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == vote_cast {
+            let test_event = EventTestingUtils::create_test_vote_cast_event(
+                &env,
+                &Symbol::new(&env, "test"),
+                &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == oracle_result {
+            let test_event = EventTestingUtils::create_test_oracle_result_event(
+                &env,
+                &Symbol::new(&env, "test"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == market_resolved {
+            let test_event = EventTestingUtils::create_test_market_resolved_event(
+                &env,
+                &Symbol::new(&env, "test"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == dispute_created {
+            let test_event = EventTestingUtils::create_test_dispute_created_event(
+                &env,
+                &Symbol::new(&env, "test"),
+                &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == fee_collected {
+            let test_event = EventTestingUtils::create_test_fee_collected_event(
+                &env,
+                &Symbol::new(&env, "test"),
+                &Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
+            );
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == error_logged {
+            let test_event = EventTestingUtils::create_test_error_logged_event(&env);
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else if event_type == performance_metric {
+            let test_event = EventTestingUtils::create_test_performance_metric_event(&env);
+            EventTestingUtils::validate_test_event_structure(&test_event).is_ok()
+        } else {
+            false
         }
     }
 
