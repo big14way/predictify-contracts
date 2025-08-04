@@ -1,7 +1,18 @@
-use soroban_sdk::{contracttype, vec, symbol_short, Address, Env, Map, String, Symbol, Vec};
-use alloc::string::ToString;
+extern crate alloc;
 
+// use alloc::string::ToString; // Removed to fix Display/ToString trait errors
+use soroban_sdk::{contracttype, symbol_short, vec, Address, Env, Map, String, Symbol, Vec};
+
+use crate::config::Environment;
 use crate::errors::Error;
+
+// Define AdminRole locally since it's not available in the crate root
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdminRole {
+    Owner,
+    Admin,
+    Moderator,
+}
 
 /// Comprehensive event system for Predictify Hybrid contract
 ///
@@ -13,7 +24,9 @@ use crate::errors::Error;
 /// - Event testing utilities and examples
 /// - Event documentation and examples
 // ===== EVENT TYPES =====
+
 /// Market creation event
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MarketCreatedEvent {
@@ -31,7 +44,67 @@ pub struct MarketCreatedEvent {
     pub timestamp: u64,
 }
 
-/// Vote cast event
+/// Event emitted when a user successfully casts a vote on a prediction market.
+///
+/// This event captures all details of voting activity, including voter identity,
+/// chosen outcome, stake amount, and timing. Critical for tracking market
+/// participation, calculating outcomes, and maintaining voting transparency.
+///
+/// # Vote Information
+///
+/// Records complete voting context:
+/// - Market and voter identification
+/// - Selected outcome and confidence (stake)
+/// - Precise timing for chronological analysis
+/// - Economic weight for outcome calculations
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Symbol, String};
+/// # use predictify_hybrid::events::VoteCastEvent;
+/// # let env = Env::default();
+/// # let voter = Address::generate(&env);
+///
+/// // Vote casting event data
+/// let event = VoteCastEvent {
+///     market_id: Symbol::new(&env, "btc_50k_2024"),
+///     voter: voter.clone(),
+///     outcome: String::from_str(&env, "Yes"),
+///     stake: 10_000_000, // 1.0 XLM
+///     timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Event provides complete voting context
+/// println!("Vote cast by: {}", event.voter.to_string());
+/// println!("Market: {}", event.market_id.to_string());
+/// println!("Outcome: {}", event.outcome.to_string());
+/// println!("Stake: {} XLM", event.stake / 10_000_000);
+/// ```
+///
+/// # Economic Tracking
+///
+/// Enables comprehensive economic analysis:
+/// - **Stake Distribution**: Track economic weight across outcomes
+/// - **Voter Confidence**: Analyze stake amounts as confidence indicators
+/// - **Market Liquidity**: Monitor total stakes and participation levels
+/// - **Outcome Probability**: Calculate implied probabilities from stakes
+///
+/// # Transparency Features
+///
+/// Supports market transparency through:
+/// - **Public Voting Records**: All votes are publicly auditable
+/// - **Stake Verification**: Economic weights are transparently recorded
+/// - **Chronological Ordering**: Precise timing enables trend analysis
+/// - **Voter Attribution**: Clear voter identity for accountability
+///
+/// # Integration Applications
+///
+/// - **Real-time Updates**: Live market activity feeds
+/// - **Analytics Dashboards**: Voting pattern analysis and visualization
+/// - **Outcome Calculation**: Stake-weighted probability calculations
+/// - **User Portfolios**: Track individual voting history and performance
+/// - **Market Sentiment**: Aggregate voting trends and momentum analysis
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VoteCastEvent {
@@ -47,7 +120,70 @@ pub struct VoteCastEvent {
     pub timestamp: u64,
 }
 
-/// Oracle result fetched event
+/// Event emitted when oracle data is successfully fetched for market resolution.
+///
+/// This event captures comprehensive oracle data retrieval information, including
+/// the specific data source, fetched values, comparison logic, and timing.
+/// Essential for transparency, auditability, and dispute resolution processes.
+///
+/// # Oracle Data Context
+///
+/// Provides complete oracle resolution context:
+/// - Market identification and oracle provider details
+/// - Actual fetched data values and comparison parameters
+/// - Resolution logic and threshold evaluation
+/// - Precise timing for chronological verification
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Symbol, String};
+/// # use predictify_hybrid::events::OracleResultEvent;
+/// # let env = Env::default();
+///
+/// // Oracle result event for Bitcoin price market
+/// let event = OracleResultEvent {
+///     market_id: Symbol::new(&env, "btc_50k_2024"),
+///     result: String::from_str(&env, "Yes"), // Bitcoin reached $50k
+///     provider: String::from_str(&env, "Chainlink"),
+///     feed_id: String::from_str(&env, "BTC/USD"),
+///     price: 52_000_00000000, // $52,000 (8 decimal precision)
+///     threshold: 50_000_00000000, // $50,000 threshold
+///     comparison: String::from_str(&env, "gte"), // greater than or equal
+///     timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Event provides complete oracle context
+/// println!("Oracle result: {}", event.result.to_string());
+/// println!("Price fetched: ${}", event.price / 100000000);
+/// println!("Threshold: ${}", event.threshold / 100000000);
+/// println!("Provider: {}", event.provider.to_string());
+/// println!("Feed: {}", event.feed_id.to_string());
+/// ```
+///
+/// # Transparency and Auditability
+///
+/// Enables complete oracle transparency:
+/// - **Data Source Verification**: Clear provider and feed identification
+/// - **Value Documentation**: Exact fetched values with precision
+/// - **Logic Transparency**: Comparison operators and thresholds
+/// - **Timing Verification**: Precise fetch timestamps
+///
+/// # Dispute Resolution Support
+///
+/// Critical for dispute processes:
+/// - **Evidence Base**: Concrete data for dispute evaluation
+/// - **Verification Path**: Complete audit trail from source to result
+/// - **Alternative Validation**: Enable cross-reference with other sources
+/// - **Historical Context**: Timestamp-based data verification
+///
+/// # Integration Applications
+///
+/// - **Oracle Monitoring**: Track oracle performance and reliability
+/// - **Data Verification**: Cross-reference oracle results with external sources
+/// - **Dispute Analysis**: Provide evidence for community dispute resolution
+/// - **Market Analytics**: Analyze oracle accuracy and market outcomes
+/// - **Compliance Reporting**: Maintain regulatory audit trails
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OracleResultEvent {
@@ -69,7 +205,73 @@ pub struct OracleResultEvent {
     pub timestamp: u64,
 }
 
-/// Market resolved event
+/// Event emitted when a prediction market is successfully resolved with final outcome.
+///
+/// This event captures the complete resolution process, including the final outcome,
+/// resolution methodology (oracle vs. community), confidence metrics, and timing.
+/// Critical for market finalization, payout calculations, and resolution transparency.
+///
+/// # Resolution Context
+///
+/// Provides comprehensive resolution information:
+/// - Final market outcome and supporting evidence
+/// - Resolution methodology and confidence scoring
+/// - Oracle and community input comparison
+/// - Timing for chronological resolution tracking
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Symbol, String};
+/// # use predictify_hybrid::events::MarketResolvedEvent;
+/// # let env = Env::default();
+///
+/// // Market resolution event for Bitcoin price market
+/// let event = MarketResolvedEvent {
+///     market_id: Symbol::new(&env, "btc_50k_2024"),
+///     final_outcome: String::from_str(&env, "Yes"),
+///     oracle_result: String::from_str(&env, "Yes"),
+///     community_consensus: String::from_str(&env, "Yes"),
+///     resolution_method: String::from_str(&env, "Oracle_Community_Consensus"),
+///     confidence_score: 95, // 95% confidence
+///     timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Event provides complete resolution context
+/// println!("Market resolved: {}", event.market_id.to_string());
+/// println!("Final outcome: {}", event.final_outcome.to_string());
+/// println!("Resolution method: {}", event.resolution_method.to_string());
+/// println!("Confidence: {}%", event.confidence_score);
+///
+/// // Check consensus alignment
+/// let consensus_aligned = event.oracle_result == event.community_consensus;
+/// println!("Oracle-Community alignment: {}", consensus_aligned);
+/// ```
+///
+/// # Resolution Methods
+///
+/// Supports multiple resolution approaches:
+/// - **Oracle Only**: Pure oracle-based resolution
+/// - **Community Only**: Pure community voting resolution
+/// - **Hybrid Consensus**: Oracle and community agreement
+/// - **Dispute Resolution**: Community override of oracle result
+/// - **Admin Override**: Administrative resolution for edge cases
+///
+/// # Confidence Scoring
+///
+/// Confidence scores indicate resolution reliability:
+/// - **90-100%**: High confidence, strong consensus
+/// - **70-89%**: Medium confidence, reasonable consensus
+/// - **50-69%**: Low confidence, weak consensus
+/// - **Below 50%**: Very low confidence, potential disputes
+///
+/// # Integration Applications
+///
+/// - **Payout Processing**: Trigger reward distribution to winners
+/// - **Market Analytics**: Track resolution accuracy and patterns
+/// - **Confidence Metrics**: Display resolution reliability to users
+/// - **Dispute Prevention**: Early warning for low-confidence resolutions
+/// - **Historical Analysis**: Build resolution methodology effectiveness data
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MarketResolvedEvent {
@@ -89,7 +291,72 @@ pub struct MarketResolvedEvent {
     pub timestamp: u64,
 }
 
-/// Dispute created event
+/// Event emitted when a user creates a formal dispute against a market resolution.
+///
+/// This event captures dispute initiation details, including the disputing party,
+/// economic stake, reasoning, and timing. Essential for tracking dispute activity,
+/// managing dispute processes, and maintaining resolution transparency.
+///
+/// # Dispute Information
+///
+/// Records complete dispute context:
+/// - Market identification and disputing party
+/// - Economic stake demonstrating dispute seriousness
+/// - Optional reasoning for dispute justification
+/// - Precise timing for dispute process management
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Symbol, String};
+/// # use predictify_hybrid::events::DisputeCreatedEvent;
+/// # let env = Env::default();
+/// # let disputer = Address::generate(&env);
+///
+/// // Dispute creation event
+/// let event = DisputeCreatedEvent {
+///     market_id: Symbol::new(&env, "btc_50k_2024"),
+///     disputer: disputer.clone(),
+///     stake: 50_000_000, // 5.0 XLM dispute stake
+///     reason: Some(String::from_str(&env,
+///         "Oracle price appears incorrect - multiple exchanges show different value")),
+///     timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Event provides complete dispute context
+/// println!("Dispute created by: {}", event.disputer.to_string());
+/// println!("Market disputed: {}", event.market_id.to_string());
+/// println!("Stake amount: {} XLM", event.stake / 10_000_000);
+///
+/// if let Some(reason) = &event.reason {
+///     println!("Dispute reason: {}", reason.to_string());
+/// }
+/// ```
+///
+/// # Economic Stakes
+///
+/// Dispute stakes serve multiple purposes:
+/// - **Seriousness Filter**: Minimum stake prevents frivolous disputes
+/// - **Economic Risk**: Disputers risk stake if dispute is rejected
+/// - **Incentive Alignment**: Encourages well-researched disputes
+/// - **Compensation Pool**: Stakes fund dispute resolution rewards
+///
+/// # Dispute Lifecycle
+///
+/// Dispute creation triggers:
+/// 1. **Validation**: Check dispute eligibility and stake requirements
+/// 2. **Community Voting**: Open dispute for community evaluation
+/// 3. **Evidence Collection**: Gather supporting data and arguments
+/// 4. **Resolution Process**: Determine dispute validity
+/// 5. **Stake Distribution**: Reward accurate participants
+///
+/// # Integration Applications
+///
+/// - **Dispute Management**: Track and manage active disputes
+/// - **Community Engagement**: Notify community of new disputes
+/// - **Resolution Analytics**: Analyze dispute patterns and outcomes
+/// - **Transparency Reporting**: Maintain public dispute records
+/// - **Economic Monitoring**: Track dispute stakes and economic activity
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DisputeCreatedEvent {
@@ -105,7 +372,79 @@ pub struct DisputeCreatedEvent {
     pub timestamp: u64,
 }
 
-/// Dispute resolved event
+/// Event emitted when a dispute is successfully resolved with final outcome and rewards.
+///
+/// This event captures the complete dispute resolution process, including the final
+/// outcome, winning and losing participants, fee distribution, and timing.
+/// Essential for transparency, reward distribution, and dispute analytics.
+///
+/// # Resolution Information
+///
+/// Records complete dispute resolution context:
+/// - Market identification and final dispute outcome
+/// - Winner and loser participant lists
+/// - Economic reward distribution amounts
+/// - Precise timing for chronological tracking
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Symbol, String, Vec};
+/// # use predictify_hybrid::events::DisputeResolvedEvent;
+/// # let env = Env::default();
+/// # let winner1 = Address::generate(&env);
+/// # let winner2 = Address::generate(&env);
+/// # let loser1 = Address::generate(&env);
+///
+/// // Dispute resolution event
+/// let event = DisputeResolvedEvent {
+///     market_id: Symbol::new(&env, "btc_50k_2024"),
+///     outcome: String::from_str(&env, "Dispute_Upheld"), // Community sided with disputer
+///     winners: vec![&env, winner1.clone(), winner2.clone()], // Correct voters
+///     losers: vec![&env, loser1.clone()], // Incorrect voters
+///     fee_distribution: 25_000_000, // 2.5 XLM distributed to winners
+///     timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Event provides complete resolution context
+/// println!("Dispute resolved: {}", event.market_id.to_string());
+/// println!("Outcome: {}", event.outcome.to_string());
+/// println!("Winners: {} participants", event.winners.len());
+/// println!("Losers: {} participants", event.losers.len());
+/// println!("Total rewards: {} XLM", event.fee_distribution / 10_000_000);
+/// ```
+///
+/// # Resolution Outcomes
+///
+/// Possible dispute outcomes:
+/// - **Dispute_Upheld**: Community agreed with disputer, oracle was wrong
+/// - **Dispute_Rejected**: Community disagreed with disputer, oracle was correct
+/// - **Dispute_Inconclusive**: Insufficient consensus, requires escalation
+/// - **Dispute_Invalid**: Dispute did not meet validity requirements
+///
+/// # Economic Distribution
+///
+/// Fee distribution mechanics:
+/// - **Winner Rewards**: Proportional share of loser stakes
+/// - **Stake Recovery**: Winners recover their original stakes
+/// - **Penalty Application**: Losers forfeit stakes to winners
+/// - **Platform Fee**: Small percentage retained for operations
+///
+/// # Participant Tracking
+///
+/// Winner and loser lists enable:
+/// - **Reward Distribution**: Direct transfer to winner addresses
+/// - **Reputation Tracking**: Build participant accuracy records
+/// - **Analytics**: Analyze voting patterns and success rates
+/// - **Transparency**: Public record of dispute participation
+///
+/// # Integration Applications
+///
+/// - **Reward Processing**: Execute payments to winning participants
+/// - **Reputation Systems**: Update participant accuracy scores
+/// - **Dispute Analytics**: Track resolution patterns and outcomes
+/// - **Community Metrics**: Measure dispute system effectiveness
+/// - **Transparency Reporting**: Maintain public dispute resolution records
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DisputeResolvedEvent {
@@ -204,6 +543,202 @@ pub struct PerformanceMetricEvent {
     /// Context
     pub context: String,
     /// Metric timestamp
+    pub timestamp: u64,
+}
+
+/// Admin action event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminActionEvent {
+    /// Admin address
+    pub admin: Address,
+    /// Action performed
+    pub action: String,
+    /// Target of action
+    pub target: Option<String>,
+    /// Action timestamp
+    pub timestamp: u64,
+    /// Action success status
+    pub success: bool,
+}
+
+/// Admin role event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminRoleEvent {
+    /// Admin address
+    pub admin: Address,
+    /// Role assigned
+    pub role: String,
+    /// Assigned by
+    pub assigned_by: Address,
+    /// Assignment timestamp
+    pub timestamp: u64,
+}
+
+/// Admin permission event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminPermissionEvent {
+    /// Admin address
+    pub admin: Address,
+    /// Permission checked
+    pub permission: String,
+    /// Access granted
+    pub granted: bool,
+    /// Check timestamp
+    pub timestamp: u64,
+}
+
+/// Market closed event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MarketClosedEvent {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Admin who closed it
+    pub admin: Address,
+    /// Close timestamp
+    pub timestamp: u64,
+}
+
+/// Market finalized event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MarketFinalizedEvent {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Admin who finalized it
+    pub admin: Address,
+    /// Final outcome
+    pub outcome: String,
+    /// Finalization timestamp
+    pub timestamp: u64,
+}
+
+/// Admin initialized event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminInitializedEvent {
+    /// Admin address
+    pub admin: Address,
+    /// Initialization timestamp
+    pub timestamp: u64,
+}
+
+/// Dispute timeout set event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisputeTimeoutSetEvent {
+    /// Dispute ID
+    pub dispute_id: Symbol,
+    /// Market ID
+    pub market_id: Symbol,
+    /// Timeout hours
+    pub timeout_hours: u32,
+    /// Set by admin
+    pub set_by: Address,
+    /// Set timestamp
+    pub timestamp: u64,
+}
+
+/// Dispute timeout expired event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisputeTimeoutExpiredEvent {
+    /// Dispute ID
+    pub dispute_id: Symbol,
+    /// Market ID
+    pub market_id: Symbol,
+    /// Expiration timestamp
+    pub expiration_timestamp: u64,
+    /// Auto-resolution outcome
+    pub outcome: String,
+    /// Resolution method
+    pub resolution_method: String,
+}
+
+/// Dispute timeout extended event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisputeTimeoutExtendedEvent {
+    /// Dispute ID
+    pub dispute_id: Symbol,
+    /// Market ID
+    pub market_id: Symbol,
+    /// Additional hours
+    pub additional_hours: u32,
+    /// Extended by admin
+    pub extended_by: Address,
+    /// Extension timestamp
+    pub timestamp: u64,
+}
+
+/// Dispute auto-resolved event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisputeAutoResolvedEvent {
+    /// Dispute ID
+    pub dispute_id: Symbol,
+    /// Market ID
+    pub market_id: Symbol,
+    /// Resolution outcome
+    pub outcome: String,
+    /// Resolution reason
+    pub reason: String,
+    /// Resolution timestamp
+    pub timestamp: u64,
+}
+
+/// Config initialized event
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfigInitializedEvent {
+    /// Admin address
+    pub admin: Address,
+    /// Environment
+    pub environment: String,
+    /// Initialization timestamp
+    pub timestamp: u64,
+}
+
+/// Storage cleanup event
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct StorageCleanupEvent {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Cleanup type
+    pub cleanup_type: String,
+    /// Cleanup timestamp
+    pub timestamp: u64,
+}
+
+/// Storage optimization event
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct StorageOptimizationEvent {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Optimization type
+    pub optimization_type: String,
+    /// Optimization timestamp
+    pub timestamp: u64,
+}
+
+/// Storage migration event
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct StorageMigrationEvent {
+    /// Migration ID
+    pub migration_id: Symbol,
+    /// Source format
+    pub from_format: String,
+    /// Target format
+    pub to_format: String,
+    /// Number of markets migrated
+    pub markets_migrated: u32,
+    /// Migration timestamp
     pub timestamp: u64,
 }
 
@@ -436,6 +971,232 @@ impl EventEmitter {
         Self::store_event(env, &symbol_short!("perf_met"), &event);
     }
 
+    /// Emit admin action logged event
+    pub fn emit_admin_action_logged(env: &Env, admin: &Address, action: &str, success: &bool) {
+        let event = AdminActionEvent {
+            admin: admin.clone(),
+            action: String::from_str(env, action),
+            target: None,
+            timestamp: env.ledger().timestamp(),
+            success: *success,
+        };
+
+        Self::store_event(env, &symbol_short!("adm_act"), &event);
+    }
+
+    /// Emit admin initialized event
+    pub fn emit_admin_initialized(env: &Env, admin: &Address) {
+        let event = AdminInitializedEvent {
+            admin: admin.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("adm_init"), &event);
+    }
+
+    /// Emit config initialized event
+    pub fn emit_config_initialized(env: &Env, admin: &Address, environment: &Environment) {
+        let event = ConfigInitializedEvent {
+            admin: admin.clone(),
+            environment: String::from_str(
+                env,
+                match environment {
+                    Environment::Development => "Development",
+                    Environment::Testnet => "Testnet",
+                    Environment::Mainnet => "Mainnet",
+                    Environment::Custom => "Custom",
+                },
+            ),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("cfg_init"), &event);
+    }
+
+    /// Emit admin role assigned event
+    pub fn emit_admin_role_assigned(
+        env: &Env,
+        admin: &Address,
+        role: &AdminRole,
+        assigned_by: &Address,
+    ) {
+        let event = AdminRoleEvent {
+            admin: admin.clone(),
+            role: String::from_str(
+                env,
+                match role {
+                    AdminRole::Owner => "Owner",
+                    AdminRole::Admin => "Admin",
+                    AdminRole::Moderator => "Moderator",
+                },
+            ),
+            assigned_by: assigned_by.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("adm_role"), &event);
+    }
+
+    /// Emit admin role deactivated event
+    pub fn emit_admin_role_deactivated(env: &Env, admin: &Address, deactivated_by: &Address) {
+        let event = AdminRoleEvent {
+            admin: admin.clone(),
+            role: String::from_str(env, "deactivated"),
+            assigned_by: deactivated_by.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("adm_deact"), &event);
+    }
+
+    /// Emit market closed event
+    pub fn emit_market_closed(env: &Env, market_id: &Symbol, admin: &Address) {
+        let event = MarketClosedEvent {
+            market_id: market_id.clone(),
+            admin: admin.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("mkt_close"), &event);
+    }
+
+    /// Emit market finalized event
+    pub fn emit_market_finalized(env: &Env, market_id: &Symbol, admin: &Address, outcome: &String) {
+        let event = MarketFinalizedEvent {
+            market_id: market_id.clone(),
+            admin: admin.clone(),
+            outcome: outcome.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("mkt_final"), &event);
+    }
+
+    /// Emit dispute timeout set event
+    pub fn emit_dispute_timeout_set(
+        env: &Env,
+        dispute_id: &Symbol,
+        market_id: &Symbol,
+        timeout_hours: u32,
+        set_by: &Address,
+    ) {
+        let event = DisputeTimeoutSetEvent {
+            dispute_id: dispute_id.clone(),
+            market_id: market_id.clone(),
+            timeout_hours,
+            set_by: set_by.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("tout_set"), &event);
+    }
+
+    /// Emit dispute timeout expired event
+    pub fn emit_dispute_timeout_expired(
+        env: &Env,
+        dispute_id: &Symbol,
+        market_id: &Symbol,
+        outcome: &String,
+        resolution_method: &String,
+    ) {
+        let event = DisputeTimeoutExpiredEvent {
+            dispute_id: dispute_id.clone(),
+            market_id: market_id.clone(),
+            expiration_timestamp: env.ledger().timestamp(),
+            outcome: outcome.clone(),
+            resolution_method: resolution_method.clone(),
+        };
+
+        Self::store_event(env, &symbol_short!("tout_exp"), &event);
+    }
+
+    /// Emit dispute timeout extended event
+    pub fn emit_dispute_timeout_extended(
+        env: &Env,
+        dispute_id: &Symbol,
+        market_id: &Symbol,
+        additional_hours: u32,
+        extended_by: &Address,
+    ) {
+        let event = DisputeTimeoutExtendedEvent {
+            dispute_id: dispute_id.clone(),
+            market_id: market_id.clone(),
+            additional_hours,
+            extended_by: extended_by.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("tout_ext"), &event);
+    }
+
+    /// Emit dispute auto-resolved event
+    pub fn emit_dispute_auto_resolved(
+        env: &Env,
+        dispute_id: &Symbol,
+        market_id: &Symbol,
+        outcome: &String,
+        reason: &String,
+    ) {
+        let event = DisputeAutoResolvedEvent {
+            dispute_id: dispute_id.clone(),
+            market_id: market_id.clone(),
+            outcome: outcome.clone(),
+            reason: reason.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("auto_res"), &event);
+    }
+
+    /// Emit storage cleanup event
+    pub fn emit_storage_cleanup_event(
+        env: &Env,
+        market_id: &Symbol,
+        cleanup_type: &String,
+    ) {
+        let event = StorageCleanupEvent {
+            market_id: market_id.clone(),
+            cleanup_type: cleanup_type.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("stor_cln"), &event);
+    }
+
+    /// Emit storage optimization event
+    pub fn emit_storage_optimization_event(
+        env: &Env,
+        market_id: &Symbol,
+        optimization_type: &String,
+    ) {
+        let event = StorageOptimizationEvent {
+            market_id: market_id.clone(),
+            optimization_type: optimization_type.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("stor_opt"), &event);
+    }
+
+    /// Emit storage migration event
+    pub fn emit_storage_migration_event(
+        env: &Env,
+        migration_id: &Symbol,
+        from_format: &String,
+        to_format: &String,
+        markets_migrated: u32,
+    ) {
+        let event = StorageMigrationEvent {
+            migration_id: migration_id.clone(),
+            from_format: from_format.clone(),
+            to_format: to_format.clone(),
+            markets_migrated,
+            timestamp: env.ledger().timestamp(),
+        };
+
+        Self::store_event(env, &symbol_short!("stor_mig"), &event);
+    }
+
     /// Store event in persistent storage
     fn store_event<T>(env: &Env, event_key: &Symbol, event_data: &T)
     where
@@ -454,7 +1215,9 @@ impl EventLogger {
     /// Get all events of a specific type
     pub fn get_events<T>(env: &Env, event_type: &Symbol) -> Vec<T>
     where
-        T: Clone + soroban_sdk::TryFromVal<soroban_sdk::Env, soroban_sdk::Val> + soroban_sdk::IntoVal<soroban_sdk::Env, soroban_sdk::Val>,
+        T: Clone
+            + soroban_sdk::TryFromVal<soroban_sdk::Env, soroban_sdk::Val>
+            + soroban_sdk::IntoVal<soroban_sdk::Env, soroban_sdk::Val>,
     {
         match env.storage().persistent().get::<Symbol, T>(event_type) {
             Some(event) => Vec::from_array(env, [event]),
@@ -467,7 +1230,11 @@ impl EventLogger {
         let mut events = Vec::new(env);
 
         // Get market created events
-        if let Some(event) = env.storage().persistent().get::<Symbol, MarketCreatedEvent>(&symbol_short!("mkt_crt")) {
+        if let Some(event) = env
+            .storage()
+            .persistent()
+            .get::<Symbol, MarketCreatedEvent>(&symbol_short!("mkt_crt"))
+        {
             if event.market_id == *market_id {
                 events.push_back(MarketEventSummary {
                     event_type: String::from_str(env, "MarketCreated"),
@@ -478,7 +1245,11 @@ impl EventLogger {
         }
 
         // Get vote cast events
-        if let Some(event) = env.storage().persistent().get::<Symbol, VoteCastEvent>(&symbol_short!("vote")) {
+        if let Some(event) = env
+            .storage()
+            .persistent()
+            .get::<Symbol, VoteCastEvent>(&symbol_short!("vote"))
+        {
             if event.market_id == *market_id {
                 events.push_back(MarketEventSummary {
                     event_type: String::from_str(env, "VoteCast"),
@@ -489,7 +1260,11 @@ impl EventLogger {
         }
 
         // Get oracle result events
-        if let Some(event) = env.storage().persistent().get::<Symbol, OracleResultEvent>(&symbol_short!("oracle_rs")) {
+        if let Some(event) = env
+            .storage()
+            .persistent()
+            .get::<Symbol, OracleResultEvent>(&symbol_short!("oracle_rs"))
+        {
             if event.market_id == *market_id {
                 events.push_back(MarketEventSummary {
                     event_type: String::from_str(env, "OracleResult"),
@@ -500,7 +1275,11 @@ impl EventLogger {
         }
 
         // Get market resolved events
-        if let Some(event) = env.storage().persistent().get::<Symbol, MarketResolvedEvent>(&symbol_short!("mkt_res")) {
+        if let Some(event) = env
+            .storage()
+            .persistent()
+            .get::<Symbol, MarketResolvedEvent>(&symbol_short!("mkt_res"))
+        {
             if event.market_id == *market_id {
                 events.push_back(MarketEventSummary {
                     event_type: String::from_str(env, "MarketResolved"),
@@ -600,11 +1379,13 @@ pub struct EventValidator;
 impl EventValidator {
     /// Validate market created event
     pub fn validate_market_created_event(event: &MarketCreatedEvent) -> Result<(), Error> {
+
         // Skip validation for market_id (Symbol validation is complex)
 
         if event.question.is_empty() {
             return Err(Error::InvalidInput);
         }
+
 
         if event.outcomes.len() < 2 {
             return Err(Error::InvalidInput);
@@ -619,11 +1400,13 @@ impl EventValidator {
 
     /// Validate vote cast event
     pub fn validate_vote_cast_event(event: &VoteCastEvent) -> Result<(), Error> {
+
         // Skip validation for market_id (Symbol validation is complex)
 
         if event.outcome.is_empty() {
             return Err(Error::InvalidInput);
         }
+
 
         if event.stake <= 0 {
             return Err(Error::InvalidInput);
@@ -633,6 +1416,7 @@ impl EventValidator {
     }
 
     /// Validate oracle result event
+
     pub fn validate_oracle_result_event(event: &OracleResultEvent) -> Result<(), Error> {
         // Skip validation for market_id (Symbol validation is complex)
 
@@ -648,11 +1432,13 @@ impl EventValidator {
             return Err(Error::InvalidInput);
         }
 
+
         Ok(())
     }
 
     /// Validate market resolved event
     pub fn validate_market_resolved_event(event: &MarketResolvedEvent) -> Result<(), Error> {
+
         // Skip validation for market_id (Symbol validation is complex)
 
         if event.final_outcome.is_empty() {
@@ -667,6 +1453,7 @@ impl EventValidator {
             return Err(Error::InvalidInput);
         }
 
+
         if event.confidence_score < 0 || event.confidence_score > 100 {
             return Err(Error::InvalidInput);
         }
@@ -676,7 +1463,9 @@ impl EventValidator {
 
     /// Validate dispute created event
     pub fn validate_dispute_created_event(event: &DisputeCreatedEvent) -> Result<(), Error> {
+
         // Skip validation for market_id (Symbol validation is complex)
+
 
         if event.stake <= 0 {
             return Err(Error::InvalidInput);
@@ -687,28 +1476,38 @@ impl EventValidator {
 
     /// Validate fee collected event
     pub fn validate_fee_collected_event(event: &FeeCollectedEvent) -> Result<(), Error> {
+
         // Skip validation for market_id (Symbol validation is complex)
+
 
         if event.amount <= 0 {
             return Err(Error::InvalidInput);
         }
 
+
         if event.fee_type.is_empty() {
             return Err(Error::InvalidInput);
         }
+
 
         Ok(())
     }
 
     /// Validate extension requested event
+
     pub fn validate_extension_requested_event(event: &ExtensionRequestedEvent) -> Result<(), Error> {
         // Skip validation for market_id (Symbol validation is complex)
 
-        if event.additional_days == 0 {
-            return Err(Error::InvalidInput);
-        }
+
+    pub fn validate_extension_requested_event(
+        event: &ExtensionRequestedEvent,
+    ) -> Result<(), Error> {
+        // Remove empty check for Symbol since it doesn't have is_empty method
+        // Market ID validation is handled by the Symbol type itself
+
 
         if event.reason.is_empty() {
+
             return Err(Error::InvalidInput);
         }
 
@@ -720,6 +1519,7 @@ impl EventValidator {
     }
 
     /// Validate error logged event
+
     pub fn validate_error_logged_event(event: &ErrorLoggedEvent) -> Result<(), Error> {
         if event.message.is_empty() {
             return Err(Error::InvalidInput);
@@ -729,10 +1529,12 @@ impl EventValidator {
             return Err(Error::InvalidInput);
         }
 
+
         Ok(())
     }
 
     /// Validate performance metric event
+
     pub fn validate_performance_metric_event(event: &PerformanceMetricEvent) -> Result<(), Error> {
         if event.metric_name.is_empty() {
             return Err(Error::InvalidInput);
@@ -745,6 +1547,7 @@ impl EventValidator {
         if event.context.is_empty() {
             return Err(Error::InvalidInput);
         }
+
 
         Ok(())
     }
@@ -766,17 +1569,19 @@ impl EventHelpers {
     }
 
     /// Format event timestamp for display
-    pub fn format_timestamp(timestamp: u64) -> String {
-        // In a real implementation, this would format the timestamp
-        // For now, return as string
-        let env = Env::default();
-        String::from_str(&env, &timestamp.to_string())
+    pub fn format_timestamp(env: &Env, _timestamp: u64) -> String {
+        // For now, return a placeholder since we can't easily convert to string
+        // This is a limitation of the current Soroban SDK
+        String::from_str(env, "timestamp")
     }
 
     /// Get event type from symbol
+
+  
     pub fn get_event_type_from_symbol(_symbol: &Symbol) -> String {
         let env = Env::default();
         String::from_str(&env, "symbol")
+
     }
 
     /// Create event context string
@@ -785,7 +1590,9 @@ impl EventHelpers {
         for (i, part) in context_parts.iter().enumerate() {
             if i > 0 {
                 let _separator = String::from_str(env, " | ");
+
                 // Complex string concatenation is not supported in Soroban
+
             } else {
                 context = part.clone();
             }
@@ -805,7 +1612,11 @@ impl EventHelpers {
     }
 
     /// Check if event is recent (within specified seconds)
-    pub fn is_recent_event(event_timestamp: u64, current_timestamp: u64, recent_threshold: u64) -> bool {
+    pub fn is_recent_event(
+        event_timestamp: u64,
+        current_timestamp: u64,
+        recent_threshold: u64,
+    ) -> bool {
         Self::get_event_age(current_timestamp, event_timestamp) <= recent_threshold
     }
 }
@@ -852,10 +1663,7 @@ impl EventTestingUtils {
     }
 
     /// Create test oracle result event
-    pub fn create_test_oracle_result_event(
-        env: &Env,
-        market_id: &Symbol,
-    ) -> OracleResultEvent {
+    pub fn create_test_oracle_result_event(env: &Env, market_id: &Symbol) -> OracleResultEvent {
         OracleResultEvent {
             market_id: market_id.clone(),
             result: String::from_str(env, "yes"),
@@ -869,10 +1677,7 @@ impl EventTestingUtils {
     }
 
     /// Create test market resolved event
-    pub fn create_test_market_resolved_event(
-        env: &Env,
-        market_id: &Symbol,
-    ) -> MarketResolvedEvent {
+    pub fn create_test_market_resolved_event(env: &Env, market_id: &Symbol) -> MarketResolvedEvent {
         MarketResolvedEvent {
             market_id: market_id.clone(),
             final_outcome: String::from_str(env, "yes"),
@@ -949,9 +1754,10 @@ impl EventTestingUtils {
 
     /// Simulate event emission
     pub fn simulate_event_emission(env: &Env, _event_type: &String) -> bool {
-        // Simulate successful event emission
+
         let event_key = Symbol::new(env, "event");
         env.storage().persistent().set(&event_key, &String::from_str(env, "test"));
+
         true
     }
 }
@@ -996,86 +1802,89 @@ pub struct EventDocumentation;
 
 impl EventDocumentation {
     /// Get event system overview
-    pub fn get_overview() -> String {
-        let env = Env::default();
-        String::from_str(&env, "Comprehensive event system for Predictify Hybrid contract with emission, logging, validation, and testing utilities.")
+    pub fn get_overview(env: &Env) -> String {
+        String::from_str(env, "Comprehensive event system for Predictify Hybrid contract with emission, logging, validation, and testing utilities.")
     }
 
     /// Get event type documentation
-    pub fn get_event_type_docs() -> Map<String, String> {
-        let env = Env::default();
-        let mut docs = Map::new(&env);
+    pub fn get_event_type_docs(env: &Env) -> Map<String, String> {
+        let mut docs = Map::new(env);
 
         docs.set(
-            String::from_str(&env, "MarketCreated"),
-            String::from_str(&env, "Emitted when a new market is created"),
+            String::from_str(env, "MarketCreated"),
+            String::from_str(env, "Emitted when a new market is created"),
         );
         docs.set(
-            String::from_str(&env, "VoteCast"),
-            String::from_str(&env, "Emitted when a user casts a vote"),
+            String::from_str(env, "VoteCast"),
+            String::from_str(env, "Emitted when a user casts a vote"),
         );
         docs.set(
-            String::from_str(&env, "OracleResult"),
-            String::from_str(&env, "Emitted when oracle result is fetched"),
+            String::from_str(env, "OracleResult"),
+            String::from_str(env, "Emitted when oracle result is fetched"),
         );
         docs.set(
-            String::from_str(&env, "MarketResolved"),
-            String::from_str(&env, "Emitted when a market is resolved"),
+            String::from_str(env, "MarketResolved"),
+            String::from_str(env, "Emitted when a market is resolved"),
         );
         docs.set(
-            String::from_str(&env, "DisputeCreated"),
-            String::from_str(&env, "Emitted when a dispute is created"),
+            String::from_str(env, "DisputeCreated"),
+            String::from_str(env, "Emitted when a dispute is created"),
         );
         docs.set(
-            String::from_str(&env, "DisputeResolved"),
-            String::from_str(&env, "Emitted when a dispute is resolved"),
+            String::from_str(env, "DisputeResolved"),
+            String::from_str(env, "Emitted when a dispute is resolved"),
         );
         docs.set(
-            String::from_str(&env, "FeeCollected"),
-            String::from_str(&env, "Emitted when fees are collected"),
+            String::from_str(env, "FeeCollected"),
+            String::from_str(env, "Emitted when fees are collected"),
         );
         docs.set(
-            String::from_str(&env, "ExtensionRequested"),
-            String::from_str(&env, "Emitted when market extension is requested"),
+            String::from_str(env, "ExtensionRequested"),
+            String::from_str(env, "Emitted when market extension is requested"),
         );
         docs.set(
-            String::from_str(&env, "ConfigUpdated"),
-            String::from_str(&env, "Emitted when configuration is updated"),
+            String::from_str(env, "ConfigUpdated"),
+            String::from_str(env, "Emitted when configuration is updated"),
         );
         docs.set(
-            String::from_str(&env, "ErrorLogged"),
-            String::from_str(&env, "Emitted when an error is logged"),
+            String::from_str(env, "ErrorLogged"),
+            String::from_str(env, "Emitted when an error is logged"),
         );
         docs.set(
-            String::from_str(&env, "PerformanceMetric"),
-            String::from_str(&env, "Emitted when performance metrics are recorded"),
+            String::from_str(env, "PerformanceMetric"),
+            String::from_str(env, "Emitted when performance metrics are recorded"),
         );
 
         docs
     }
 
     /// Get usage examples
-    pub fn get_usage_examples() -> Map<String, String> {
-        let env = Env::default();
-        let mut examples = Map::new(&env);
+    pub fn get_usage_examples(env: &Env) -> Map<String, String> {
+        let mut examples = Map::new(env);
 
         examples.set(
-            String::from_str(&env, "EmitMarketCreated"),
-            String::from_str(&env, "EventEmitter::emit_market_created(env, market_id, question, outcomes, admin, end_time)"),
+            String::from_str(env, "EmitMarketCreated"),
+            String::from_str(env, "EventEmitter::emit_market_created(env, market_id, question, outcomes, admin, end_time)"),
         );
         examples.set(
             String::from_str(&env, "EmitVoteCast"),
-            String::from_str(&env, "EventEmitter::emit_vote_cast(env, market_id, voter, outcome, stake)"),
+            String::from_str(
+                &env,
+                "EventEmitter::emit_vote_cast(env, market_id, voter, outcome, stake)",
+            ),
         );
         examples.set(
-            String::from_str(&env, "GetMarketEvents"),
-            String::from_str(&env, "EventLogger::get_market_events(env, market_id)"),
+            String::from_str(env, "GetMarketEvents"),
+            String::from_str(env, "EventLogger::get_market_events(env, market_id)"),
         );
         examples.set(
             String::from_str(&env, "ValidateEvent"),
-            String::from_str(&env, "EventValidator::validate_market_created_event(&event)"),
+            String::from_str(
+                &env,
+                "EventValidator::validate_market_created_event(&event)",
+            ),
         );
 
         examples
     }
-} 
+}

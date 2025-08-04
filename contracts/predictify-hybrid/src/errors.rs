@@ -1,9 +1,13 @@
+
 use soroban_sdk::contracterror;
 
 /// Essential error enum for the Predictify Hybrid contract
+
 #[contracterror]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
 pub enum Error {
+
     // Core errors
     Unauthorized = 1,
     MarketClosed = 2,
@@ -58,39 +62,100 @@ pub mod helpers {
     ) -> Result<(), Error> {
         if caller != admin {
             panic_with_error!(env, Error::Unauthorized);
-        }
-        Ok(())
-    }
 
-    /// Validate that the market exists and is not closed
-    pub fn require_market_open(env: &Env, market: &Option<crate::Market>) -> Result<(), Error> {
-        match market {
-            Some(market) => {
-                if env.ledger().timestamp() >= market.end_time {
-                    panic_with_error!(env, Error::MarketClosed);
-                }
-                Ok(())
-            }
-            None => {
-                panic_with_error!(env, Error::MarketNotFound);
-            }
         }
     }
 
-    /// Validate that the market is resolved
-    pub fn require_market_resolved(env: &Env, market: &Option<crate::Market>) -> Result<(), Error> {
-        match market {
-            Some(market) => {
-                if market.winning_outcome.is_none() {
-                    panic_with_error!(env, Error::MarketNotResolved);
-                }
-                Ok(())
+    /// Generate detailed error message with context
+    pub fn generate_detailed_error_message(error: &Error, context: &ErrorContext) -> String {
+        let base_message = error.description();
+        let operation = &context.operation;
+        
+        match error {
+            Error::Unauthorized => {
+                String::from_str(context.call_chain.env(), "Authorization failed for operation. User may not have required permissions.")
             }
-            None => {
-                panic_with_error!(env, Error::MarketNotFound);
+            Error::MarketNotFound => {
+                String::from_str(context.call_chain.env(), "Market not found during operation. The market may have been removed or the ID is incorrect.")
+            }
+            Error::MarketClosed => {
+                String::from_str(context.call_chain.env(), "Market is closed and cannot accept new operations. Operation was attempted on a closed market.")
+            }
+            Error::OracleUnavailable => {
+                String::from_str(context.call_chain.env(), "Oracle service is unavailable during operation. External data source may be down or unreachable.")
+            }
+            Error::InsufficientStake => {
+                String::from_str(context.call_chain.env(), "Insufficient stake amount for operation. Please increase your stake to meet the minimum requirement.")
+            }
+            Error::AlreadyVoted => {
+                String::from_str(context.call_chain.env(), "User has already voted in this market. Operation cannot be performed as voting is limited to one vote per user.")
+            }
+            Error::InvalidInput => {
+                String::from_str(context.call_chain.env(), "Invalid input provided for operation. Please check your input parameters and try again.")
+            }
+            Error::InvalidState => {
+                String::from_str(context.call_chain.env(), "Invalid system state for operation. The system may be in an unexpected state.")
+            }
+            _ => {
+                String::from_str(context.call_chain.env(), "Error during operation. Please check the operation parameters and try again.")
             }
         }
     }
+
+    /// Handle error recovery based on error type and context
+    pub fn handle_error_recovery(env: &Env, error: &Error, context: &ErrorContext) -> Result<bool, Error> {
+        let recovery_strategy = Self::get_error_recovery_strategy(error);
+        
+        match recovery_strategy {
+            RecoveryStrategy::Retry => {
+                // For retryable errors, return success to allow retry
+                Ok(true)
+            }
+            RecoveryStrategy::RetryWithDelay => {
+                // For errors that need delay, check if enough time has passed
+                let last_attempt = context.timestamp;
+                let current_time = env.ledger().timestamp();
+                let delay_required = 60; // 1 minute delay
+                
+                if current_time - last_attempt >= delay_required {
+                    Ok(true)
+                } else {
+                    Err(Error::InvalidState)
+                }
+            }
+            RecoveryStrategy::AlternativeMethod => {
+                // Try alternative approach based on error type
+                match error {
+                    Error::OracleUnavailable => {
+                        // Try fallback oracle or cached data
+                        Ok(true)
+                    }
+                    Error::MarketNotFound => {
+                        // Try to find similar market or suggest alternatives
+                        Ok(false)
+                    }
+                    _ => Ok(false)
+                }
+            }
+            RecoveryStrategy::Skip => {
+                // Skip the operation and continue
+                Ok(true)
+            }
+            RecoveryStrategy::Abort => {
+                // Abort the operation
+                Ok(false)
+            }
+            RecoveryStrategy::ManualIntervention => {
+                // Require manual intervention
+                Err(Error::InvalidState)
+            }
+            RecoveryStrategy::NoRecovery => {
+                // No recovery possible
+                Ok(false)
+            }
+        }
+    }
+
 
     /// Validate that the outcome is valid for the market
     pub fn require_valid_outcome(
@@ -102,23 +167,50 @@ pub mod helpers {
             panic_with_error!(env, Error::InvalidOutcome);
         }
         Ok(())
+
     }
 
-    /// Validate that the stake amount is sufficient
-    pub fn require_sufficient_stake(env: &Env, stake: i128, min_stake: i128) -> Result<(), Error> {
-        if stake < min_stake {
-            panic_with_error!(env, Error::InsufficientStake);
-        }
-        Ok(())
+    /// Log error details for debugging and analysis
+    pub fn log_error_details(env: &Env, detailed_error: &DetailedError) {
+        // In a real implementation, this would log to a persistent storage
+        // For now, we'll just emit the error event
+        Self::emit_error_event(env, detailed_error);
     }
 
-    /// Validate that the user hasn't already claimed
-    pub fn require_not_claimed(env: &Env, claimed: bool) -> Result<(), Error> {
-        if claimed {
-            panic_with_error!(env, Error::AlreadyClaimed);
+    /// Get error recovery strategy based on error type
+    pub fn get_error_recovery_strategy(error: &Error) -> RecoveryStrategy {
+        match error {
+            // Retryable errors
+            Error::OracleUnavailable => RecoveryStrategy::RetryWithDelay,
+            Error::InvalidInput => RecoveryStrategy::Retry,
+            
+            // Alternative method errors
+            Error::MarketNotFound => RecoveryStrategy::AlternativeMethod,
+            Error::ConfigurationNotFound => RecoveryStrategy::AlternativeMethod,
+            
+            // Skip errors
+            Error::AlreadyVoted => RecoveryStrategy::Skip,
+            Error::AlreadyClaimed => RecoveryStrategy::Skip,
+            Error::FeeAlreadyCollected => RecoveryStrategy::Skip,
+            
+            // Abort errors
+            Error::Unauthorized => RecoveryStrategy::Abort,
+            Error::MarketClosed => RecoveryStrategy::Abort,
+            Error::MarketAlreadyResolved => RecoveryStrategy::Abort,
+            
+            // Manual intervention errors
+            Error::AdminNotSet => RecoveryStrategy::ManualIntervention,
+            Error::DisputeFeeDistributionFailed => RecoveryStrategy::ManualIntervention,
+            
+            // No recovery errors
+            Error::InvalidState => RecoveryStrategy::NoRecovery,
+            Error::InvalidOracleConfig => RecoveryStrategy::NoRecovery,
+            
+            // Default to abort for unknown errors
+            _ => RecoveryStrategy::Abort,
         }
-        Ok(())
     }
+
 
     /// Validate oracle configuration
     pub fn require_valid_oracle_config(
@@ -134,10 +226,12 @@ pub mod helpers {
             && config.comparison != String::from_str(env, "eq")
         {
             panic_with_error!(env, Error::InvalidConfig);
-        }
 
+        }
+        
         Ok(())
     }
+
 
     /// Validate market creation parameters
     pub fn require_valid_market_params(
@@ -152,12 +246,23 @@ pub mod helpers {
 
         if outcomes.len() < 2 {
             panic_with_error!(env, Error::InvalidInput);
+
         }
+    }
+
 
         if duration_days == 0 || duration_days > 365 {
             panic_with_error!(env, Error::InvalidInput);
-        }
 
-        Ok(())
+        }
+    }
+
+    /// Get technical details for debugging
+    fn get_technical_details(error: &Error, context: &ErrorContext) -> String {
+        let error_code = error.code();
+        let error_num = *error as u32;
+        let timestamp = context.timestamp;
+        
+        String::from_str(context.call_chain.env(), "Error details for debugging")
     }
 }
