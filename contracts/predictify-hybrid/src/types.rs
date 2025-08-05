@@ -704,6 +704,21 @@ impl Market {
         self.total_staked += stake;
     }
 
+    /// Get user's vote if they have voted
+    pub fn get_user_vote(&self, user: &Address) -> Option<crate::voting::Vote> {
+        let outcome = self.votes.get(user.clone())?;
+        let stake = self.stakes.get(user.clone()).unwrap_or(0);
+        
+        // We don't have the exact timestamp stored separately, but we can use a placeholder
+        // In a real implementation, votes would store timestamps
+        Some(crate::voting::Vote {
+            user: user.clone(),
+            outcome,
+            stake,
+            timestamp: 0, // Placeholder - would need to be stored with the vote
+        })
+    }
+
     /// Validate market parameters
 
     pub fn validate(&self, env: &Env) -> Result<(), Error> {
@@ -1577,6 +1592,7 @@ impl VoteParams {
 // ===== UTILITY TYPES =====
 
 /// Market state enumeration
+#[contracttype]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MarketState {
     /// Market is active and accepting votes
@@ -1587,6 +1603,24 @@ pub enum MarketState {
     Resolved,
     /// Market has been closed
     Closed,
+    /// Market is under dispute
+    Disputed,
+    /// Market has been cancelled
+    Cancelled,
+}
+
+/// Extension statistics for a market
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExtensionStats {
+    /// Total number of extensions
+    pub total_extensions: u32,
+    /// Total days extended
+    pub total_days_extended: u32,
+    /// Average extension duration
+    pub average_extension_days: u32,
+    /// Number of admin extensions
+    pub admin_extensions: u32,
 }
 
 impl MarketState {

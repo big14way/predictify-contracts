@@ -5,7 +5,7 @@ use soroban_sdk::{contracttype, token, vec, Address, Env, Map, String, Symbol, V
 
 use crate::{
     errors::Error,
-    types::{Market, OracleConfig, OracleProvider, MarketCreationParams},
+    types::{Market, OracleConfig, OracleProvider, MarketCreationParams, MarketState},
 };
 
 
@@ -2491,7 +2491,7 @@ impl MarketStateLogic {
     /// ).is_err());
     /// ```
     pub fn validate_state_transition(from: MarketState, to: MarketState) -> Result<(), Error> {
-        use MarketState::*;
+        use crate::MarketState::*;
         let allowed = match from {
             Active => matches!(to, Ended | Cancelled | Closed | Disputed),
             Ended => matches!(to, Resolved | Disputed | Closed | Cancelled),
@@ -2558,7 +2558,7 @@ impl MarketStateLogic {
         function: &str,
         state: MarketState,
     ) -> Result<(), Error> {
-        use MarketState::*;
+        use crate::MarketState::*;
         let allowed = match function {
             "vote" => matches!(state, Active),
             "dispute" => matches!(state, Ended),
@@ -2668,10 +2668,10 @@ impl MarketStateLogic {
     /// }
     /// ```
     pub fn validate_market_state_consistency(env: &Env, market: &Market) -> Result<(), Error> {
-        use MarketState::*;
+        use crate::MarketState::*;
         let now = env.ledger().timestamp();
         match market.state {
-            Active => {
+            MarketState::Active => {
                 if market.end_time <= now {
                     return Err(Error::InvalidState);
                 }
@@ -2679,7 +2679,7 @@ impl MarketStateLogic {
                     return Err(Error::InvalidState);
                 }
             }
-            Ended => {
+            MarketState::Ended => {
                 if market.end_time > now {
                     return Err(Error::InvalidState);
                 }
@@ -2687,17 +2687,17 @@ impl MarketStateLogic {
                     return Err(Error::InvalidState);
                 }
             }
-            Disputed => {
+            MarketState::Disputed => {
                 if market.dispute_stakes.is_empty() {
                     return Err(Error::InvalidState);
                 }
             }
-            Resolved => {
+            MarketState::Resolved => {
                 if market.winning_outcome.is_none() {
                     return Err(Error::InvalidState);
                 }
             }
-            Closed | Cancelled => {}
+            MarketState::Closed | MarketState::Cancelled => {}
         }
         Ok(())
     }

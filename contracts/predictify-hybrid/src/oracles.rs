@@ -937,7 +937,7 @@ impl OracleFactory {
     ) -> Result<OracleInstance, Error> {
         // Check if provider is supported on Stellar
         if !Self::is_provider_supported(&provider) {
-            return Err(Error::InvalidOracleConfig);
+            return Err(Error::InvalidConfig);
         }
 
         match provider {
@@ -1074,7 +1074,7 @@ impl OracleFactory {
             }
             OracleProvider::BandProtocol | OracleProvider::DIA => {
                 // These providers are not supported on Stellar
-                Err(Error::InvalidOracleConfig)
+                Err(Error::InvalidConfig)
             }
         }
     }
@@ -1436,7 +1436,7 @@ mod tests {
         // Test Pyth oracle creation (should fail)
         let pyth_oracle = OracleFactory::create_oracle(OracleProvider::Pyth, contract_id.clone());
         assert!(pyth_oracle.is_err());
-        assert_eq!(pyth_oracle.unwrap_err(), Error::InvalidOracleConfig);
+        assert_eq!(pyth_oracle.unwrap_err(), Error::InvalidConfig);
 
         // Test Reflector oracle creation
         let reflector_oracle =
@@ -1447,7 +1447,7 @@ mod tests {
         let unsupported_oracle =
             OracleFactory::create_oracle(OracleProvider::BandProtocol, contract_id);
         assert!(unsupported_oracle.is_err());
-        assert_eq!(unsupported_oracle.unwrap_err(), Error::InvalidOracleConfig);
+        assert_eq!(unsupported_oracle.unwrap_err(), Error::InvalidConfig);
     }
 
     #[test]

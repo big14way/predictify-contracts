@@ -225,51 +225,7 @@ impl PredictifyHybrid {
         match result {
             Ok(_) => (), // Success
             Err(e) => panic_with_error!(env, e),
-
         }
-
-        if question.len() == 0 {
-            panic_with_error!(env, Error::InvalidQuestion);
-        }
-
-        // Generate a unique market ID
-        let counter_key = Symbol::new(&env, "MarketCounter");
-        let counter: u32 = env.storage().persistent().get(&counter_key).unwrap_or(0);
-        let new_counter = counter + 1;
-        env.storage().persistent().set(&counter_key, &new_counter);
-
-        let market_id = Symbol::new(&env, &format!("market_{}", new_counter));
-
-        // Calculate end time
-        let seconds_per_day: u64 = 24 * 60 * 60;
-        let duration_seconds: u64 = (duration_days as u64) * seconds_per_day;
-        let end_time: u64 = env.ledger().timestamp() + duration_seconds;
-
-        // Create a new market
-        let market = Market {
-            admin: admin.clone(),
-            question,
-            outcomes,
-            end_time,
-            oracle_config,
-            oracle_result: None,
-            votes: Map::new(&env),
-            total_staked: 0,
-            dispute_stakes: Map::new(&env),
-            stakes: Map::new(&env),
-            claimed: Map::new(&env),
-            winning_outcome: None,
-            fee_collected: false,
-            state: MarketState::Active,
-            total_extension_days: 0,
-            max_extension_days: 30,
-            extension_history: Vec::new(&env),
-        };
-
-        // Store the market
-        env.storage().persistent().set(&market_id, &market);
-
-        market_id
     }
 
     /// Allows users to vote on a market outcome by staking tokens.

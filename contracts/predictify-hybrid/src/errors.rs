@@ -1,5 +1,5 @@
 
-use soroban_sdk::contracterror;
+use soroban_sdk::{contracterror, Env, String, Vec};
 
 /// Essential error enum for the Predictify Hybrid contract
 
@@ -35,7 +35,15 @@ pub enum Error {
     InvalidConfig = 202,
     MarketNotResolved = 203,
     InvalidThreshold = 204,
-    InvalidState = 205,
+    AdminNotSet = 205,
+    InvalidTimeoutHours = 206,
+    DisputeTimeoutNotExpired = 207,
+    DisputeTimeoutExtensionNotAllowed = 208,
+    DisputeTimeoutNotSet = 209,
+    InvalidOracleConfig = 210,
+    DisputeFeeDistributionFailed = 211,
+    InvalidQuestion = 212,
+    InvalidState = 213,
     
     // Essential Oracle errors
     OracleDataStale = 301,
@@ -49,9 +57,81 @@ pub enum Error {
     InternalError = 500,
 }
 
+impl Error {
+    /// Get error description
+    pub fn description(&self) -> &'static str {
+        match self {
+            Error::Unauthorized => "Unauthorized access",
+            Error::MarketClosed => "Market is closed",
+            Error::MarketNotFound => "Market not found",
+            Error::InsufficientStake => "Insufficient stake amount",
+            Error::InvalidOutcome => "Invalid outcome specified",
+            Error::AlreadyClaimed => "Winnings already claimed",
+            Error::MarketAlreadyResolved => "Market already resolved",
+            Error::NothingToClaim => "Nothing to claim",
+            Error::AlreadyVoted => "Already voted in this market",
+            Error::AlreadyDisputed => "Market already disputed",
+            Error::OracleUnavailable => "Oracle service unavailable",
+            Error::ReentrancyAttack => "Reentrancy attack detected",
+            Error::InvalidReentrancyState => "Invalid reentrancy state",
+            Error::InconsistentReentrancyState => "Inconsistent reentrancy state",
+            Error::InvalidCallState => "Invalid call state",
+            Error::CallStackOverflow => "Call stack overflow",
+            Error::InvalidInput => "Invalid input provided",
+            Error::InvalidConfig => "Invalid configuration",
+            Error::MarketNotResolved => "Market not resolved",
+            Error::InvalidThreshold => "Invalid threshold value",
+            Error::AdminNotSet => "Admin not set",
+            Error::InvalidTimeoutHours => "Invalid timeout hours",
+            Error::DisputeTimeoutNotExpired => "Dispute timeout not expired",
+            Error::DisputeTimeoutExtensionNotAllowed => "Dispute timeout extension not allowed",
+            Error::DisputeTimeoutNotSet => "Dispute timeout not set",
+            Error::InvalidOracleConfig => "Invalid oracle configuration",
+            Error::DisputeFeeDistributionFailed => "Dispute fee distribution failed",
+            Error::InvalidQuestion => "Invalid question",
+            Error::InvalidState => "Invalid state",
+            _ => "Unknown error",
+        }
+    }
+
+    /// Get error code
+    pub fn code(&self) -> u32 {
+        *self as u32
+    }
+}
+
+/// Error context for detailed error handling
+#[derive(Clone, Debug)]
+pub struct ErrorContext {
+    pub operation: String,
+    pub call_chain: Vec<String>,
+    pub env: Env,
+}
+
+/// Detailed error information
+#[derive(Clone, Debug)]
+pub struct DetailedError {
+    pub error: Error,
+    pub context: ErrorContext,
+    pub timestamp: u64,
+}
+
+/// Recovery strategy for errors
+#[derive(Clone, Debug, PartialEq)]
+pub enum RecoveryStrategy {
+    /// Retry the operation
+    Retry,
+    /// Manual intervention required
+    ManualIntervention,
+    /// No recovery possible
+    NoRecovery,
+    /// Fallback to alternative
+    Fallback,
+}
+
 /// Error helper functions for common scenarios
 pub mod helpers {
-    use super::Error;
+    use super::{Error, ErrorContext, DetailedError, RecoveryStrategy};
     use soroban_sdk::{panic_with_error, String, Env, Vec, Address};
 
     /// Validate that the caller is the admin
@@ -62,8 +142,8 @@ pub mod helpers {
     ) -> Result<(), Error> {
         if caller != admin {
             panic_with_error!(env, Error::Unauthorized);
-
         }
+        Ok(())
     }
 
     /// Generate detailed error message with context
@@ -204,7 +284,7 @@ pub mod helpers {
             
             // No recovery errors
             Error::InvalidState => RecoveryStrategy::NoRecovery,
-            Error::InvalidOracleConfig => RecoveryStrategy::NoRecovery,
+            Error::InvalidConfig => RecoveryStrategy::NoRecovery,
             
             // Default to abort for unknown errors
             _ => RecoveryStrategy::Abort,
@@ -246,8 +326,8 @@ pub mod helpers {
 
         if outcomes.len() < 2 {
             panic_with_error!(env, Error::InvalidInput);
-
         }
+        Ok(())
     }
 
     /// Validate duration days parameter
