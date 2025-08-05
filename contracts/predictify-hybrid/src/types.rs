@@ -2,9 +2,6 @@
 use soroban_sdk::{contracttype, vec, Address, Env, Map, String, Symbol, Vec};
 use crate::errors::Error;
 
-
-use soroban_sdk::{contracttype, Address, Env, Map, String, Symbol, Vec};
-
 // ===== MARKET STATE =====
 
 /// Enumeration of possible market states throughout the prediction market lifecycle.
@@ -587,7 +584,8 @@ pub struct Market {
     pub total_extension_days: u32,
     /// Maximum extension days allowed
     pub max_extension_days: u32,
-
+    /// Extension history
+    pub extension_history: Vec<MarketExtension>,
 }
 
 /// Market extension record
@@ -638,9 +636,8 @@ impl MarketExtension {
             return Err(Error::InvalidInput);
         }
 
-
-    /// Extension history
-    pub extension_history: Vec<MarketExtension>,
+        Ok(())
+    }
 }
 
 impl Market {
@@ -717,9 +714,8 @@ impl Market {
         }
 
         // Validate outcomes
-
+        if self.outcomes.len() < 2 {
             return Err(Error::InvalidOutcome);
-
         }
 
         // Validate oracle config
@@ -945,45 +941,6 @@ impl PythPrice {
     }
 }
 
-/// Reflector asset types
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ReflectorAsset {
-    /// Stellar asset (using contract address)
-    Stellar(Address),
-    /// Other asset (using symbol)
-    Other(Symbol),
-}
-
-impl ReflectorAsset {
-    /// Create a Stellar asset
-    pub fn stellar(contract_id: Address) -> Self {
-        ReflectorAsset::Stellar(contract_id)
-    }
-
-    /// Create an other asset
-    pub fn other(symbol: Symbol) -> Self {
-        ReflectorAsset::Other(symbol)
-    }
-
-    /// Get the asset identifier as a string
-    pub fn to_string(&self, env: &Env) -> String {
-        match self {
-            ReflectorAsset::Stellar(_addr) => String::from_str(env, "stellar_asset"),
-            ReflectorAsset::Other(_symbol) => String::from_str(env, "other_asset"),
-        }
-    }
-
-    /// Check if this is a Stellar asset
-    pub fn is_stellar(&self) -> bool {
-        matches!(self, ReflectorAsset::Stellar(_))
-    }
-
-    /// Check if this is an other asset
-    pub fn is_other(&self) -> bool {
-        matches!(self, ReflectorAsset::Other(_))
-    }
-}
 
 /// Reflector price data structure
 #[contracttype]
@@ -1000,8 +957,8 @@ pub struct ReflectorPriceData {
 
 impl ReflectorPriceData {
     /// Create new Reflector price data
-    pub fn new(price: i128, timestamp: u64) -> Self {
-        Self { price, timestamp }
+    pub fn new(env: &Env, price: i128, timestamp: u64, source: String) -> Self {
+        Self { price, timestamp, source }
     }
 
     /// Get the price in cents
@@ -1247,39 +1204,6 @@ impl ReflectorPriceData {
 /// - **MarketEnded**: Cannot extend market that has already ended
 /// - **ExceedsLimits**: Extension would exceed maximum allowed duration
 /// - **UnauthorizedRequester**: Requester lacks permission for extension
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MarketExtension {
-    /// Number of additional days
-    pub additional_days: u32,
-    /// Administrator who requested the extension
-    pub admin: Address,
-    /// Reason for the extension
-    pub reason: String,
-    /// Fee amount paid
-    pub fee_amount: i128,
-    /// Extension timestamp
-    pub timestamp: u64,
-}
-
-impl MarketExtension {
-    /// Create a new market extension
-    pub fn new(
-        env: &Env,
-        additional_days: u32,
-        admin: Address,
-        reason: String,
-        fee_amount: i128,
-    ) -> Self {
-        Self {
-            additional_days,
-            admin,
-            reason,
-            fee_amount,
-            timestamp: env.ledger().timestamp(),
-        }
-    }
-}
 
 // ===== MARKET CREATION TYPES =====
 

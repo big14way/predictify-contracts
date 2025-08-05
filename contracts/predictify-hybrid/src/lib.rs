@@ -1,10 +1,6 @@
 #![no_std]
 
 extern crate alloc;
-extern crate wee_alloc;
-
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Module declarations - all modules enabled
 mod admin;
@@ -39,76 +35,19 @@ use soroban_sdk::{
 use alloc::string::ToString;
 
 // Global allocator for wasm32 target
-#[cfg(target_arch = "wasm32")]
-use linked_list_allocator::LockedHeap;
 
-#[cfg(target_arch = "wasm32")]
-#[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
-
-// Error management module
-pub mod errors;
-use errors::Error;
-
-// Types module
-pub mod types;
-use types::*;
-
-// Oracle management module
-pub mod oracles;
-
-// Market management module
-pub mod markets;
+// Import commonly used items from modules
 use markets::{MarketCreator, MarketStateManager};
-
-// Voting management module
-pub mod voting;
 use voting::VotingManager;
-
-// Dispute management module
-pub mod disputes;
 use disputes::DisputeManager;
-
-// Extension management module
-pub mod extensions;
 use extensions::{ExtensionManager, ExtensionUtils, ExtensionValidator};
-use types::ExtensionStats;
-
-// Fee management module
-pub mod fees;
 use fees::FeeManager;
-
-// Resolution management module
-pub mod resolution;
 use resolution::{OracleResolutionManager, MarketResolutionManager};
-
-// Configuration management module
-pub mod config;
 use config::{ConfigManager, ConfigUtils, ContractConfig, Environment};
-
-// Utility functions module
-pub mod utils;
 use utils::{TimeUtils, StringUtils, NumericUtils, ValidationUtils, CommonUtils};
-
-// Event system module
-pub mod events;
 use events::{EventLogger, EventHelpers, EventTestingUtils, EventDocumentation};
+use validation::ValidationResult;
 
-pub mod validation;
-use validation::{
-    ValidationResult, InputValidator, 
-    MarketValidator as ValidationMarketValidator, 
-    OracleValidator as ValidationOracleValidator,
-    FeeValidator as ValidationFeeValidator, 
-    VoteValidator as ValidationVoteValidator, 
-    DisputeValidator as ValidationDisputeValidator,
-    ComprehensiveValidator, ValidationDocumentation,
-
-};
-
-// Reentrancy protection module
-pub mod reentrancy;
-use reentrancy::{protect_external_call, validate_no_reentrancy};
 
 #[contract]
 pub struct PredictifyHybrid;
