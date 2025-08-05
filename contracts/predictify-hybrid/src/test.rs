@@ -52,7 +52,7 @@ impl TokenTest {
 pub struct PredictifyTest<'a> {
     pub env: Env,
     pub contract_id: Address,
-    pub token_test: TokenTest<'a>,
+    pub token_test: TokenTest,
 
     pub admin: Address,
     pub user: Address,
@@ -115,11 +115,9 @@ impl<'a> PredictifyTest<'a> {
         let client = PredictifyHybridClient::new(&self.env, &self.contract_id);
 
         // Create market outcomes
-        let outcomes = vec![
-            &self.env,
-            String::from_str(&self.env, "yes"),
-            String::from_str(&self.env, "no"),
-        ];
+        let mut outcomes = Vec::new(&self.env);
+        outcomes.push_back(String::from_str(&self.env, "yes"));
+        outcomes.push_back(String::from_str(&self.env, "no"));
 
         // Create market
         self.env.mock_all_auths();
@@ -136,6 +134,15 @@ impl<'a> PredictifyTest<'a> {
             },
         )
     }
+
+    pub fn create_default_oracle_config(&self) -> OracleConfig {
+        OracleConfig::new(
+            OracleProvider::Pyth,
+            String::from_str(&self.env, "BTC/USD"),
+            2500000,
+            String::from_str(&self.env, "gt"),
+        )
+    }
 }
 
 // Core functionality tests
@@ -144,11 +151,9 @@ fn test_create_market_successful() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
     let duration_days = 30;
-    let outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
-    ];
+    let mut outcomes = Vec::new(&test.env);
+    outcomes.push_back(String::from_str(&test.env, "yes"));
+    outcomes.push_back(String::from_str(&test.env, "no"));
 
     // Create market
     let market_id = client.create_market(
@@ -188,11 +193,9 @@ fn test_create_market_successful() {
 fn test_create_market_with_non_admin() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    let outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
-    ];
+    let mut outcomes = Vec::new(&test.env);
+    outcomes.push_back(String::from_str(&test.env, "yes"));
+    outcomes.push_back(String::from_str(&test.env, "no"));
 
     client.create_market(
         &test.user,
@@ -213,7 +216,7 @@ fn test_create_market_with_non_admin() {
 fn test_create_market_with_empty_outcome() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    let outcomes = vec![&test.env];
+    let outcomes = Vec::new(&test.env);
 
     client.create_market(
         &test.admin,
@@ -234,11 +237,9 @@ fn test_create_market_with_empty_outcome() {
 fn test_create_market_with_empty_question() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    let outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
-    ];
+    let mut outcomes = Vec::new(&test.env);
+    outcomes.push_back(String::from_str(&test.env, "yes"));
+    outcomes.push_back(String::from_str(&test.env, "no"));
 
     client.create_market(
         &test.admin,
@@ -443,7 +444,6 @@ fn test_question_length_validation() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     // Test maximum question length (should not exceed 500 characters)
     let long_question = "a".repeat(501);
@@ -2395,7 +2395,6 @@ fn test_event_helpers_create_context() {
         String::from_str(&test.env, "Market"),
         String::from_str(&test.env, "Vote"),
         String::from_str(&test.env, "User"),
-    ];
 
     let context = client.create_event_context(&context_parts);
     
@@ -2432,7 +2431,6 @@ fn test_event_documentation_event_types() {
         String::from_str(&test.env, "MarketResolved"),
         String::from_str(&test.env, "DisputeCreated"),
         String::from_str(&test.env, "FeeCollected"),
-    ];
 
     for event_type in event_types.iter() {
         // Verify documentation exists for each event type
@@ -2456,7 +2454,6 @@ fn test_event_documentation_usage_examples() {
         String::from_str(&test.env, "EmitVoteCast"),
         String::from_str(&test.env, "GetMarketEvents"),
         String::from_str(&test.env, "ValidateEvent"),
-    ];
 
     for example_type in example_types.iter() {
         // Verify examples exist for each type
@@ -2481,7 +2478,6 @@ fn test_event_testing_utilities() {
         String::from_str(&test.env, "FeeCollected"),
         String::from_str(&test.env, "ErrorLogged"),
         String::from_str(&test.env, "PerformanceMetric"),
-    ];
 
     for event_type in event_types.iter() {
         let success = client.create_test_event(&event_type);
@@ -2711,7 +2707,6 @@ fn test_market_validation_creation() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2738,7 +2733,6 @@ fn test_market_validation_invalid_question() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2763,7 +2757,6 @@ fn test_market_validation_invalid_outcomes() {
     let invalid_outcomes = vec![
         &test.env,
         String::from_str(&test.env, "yes"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2789,7 +2782,6 @@ fn test_market_validation_invalid_duration() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3113,7 +3105,6 @@ fn test_comprehensive_validation_scenario() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3169,7 +3160,6 @@ fn test_validation_error_handling() {
     let invalid_outcomes = vec![
         &test.env,
         String::from_str(&test.env, "yes"), // Only one outcome
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3195,7 +3185,6 @@ fn test_validation_warnings_and_recommendations() {
         &test.env,
         String::from_str(&test.env, "yes"),
         String::from_str(&test.env, "no"),
-    ];
 
     let oracle_config = test.create_default_oracle_config();
 

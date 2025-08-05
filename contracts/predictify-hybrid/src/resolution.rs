@@ -1762,7 +1762,7 @@ mod tests {
         });
 
         // Multiple oracle resolution calls
-        client.fetchoracle_result(&test.market_id, &test.pyth_contract);
+        client.fetch_oracle_result(&test.market_id, &test.pyth_contract);
         // Multiple market resolution calls
         client.resolve_market(&test.market_id);
         // Multiple analytics calls

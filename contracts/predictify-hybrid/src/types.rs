@@ -141,6 +141,16 @@ impl OracleProvider {
     pub fn is_supported(&self) -> bool {
         matches!(self, OracleProvider::Reflector)
     }
+
+    /// Get default feed format for provider
+    pub fn default_feed_format(&self) -> &'static str {
+        match self {
+            OracleProvider::Reflector => "BTC/USD",
+            OracleProvider::Pyth => "BTC/USD",
+            OracleProvider::BandProtocol => "BTC/USD",
+            OracleProvider::DIA => "BTC/USD",
+        }
+    }
 }
 
 /// Comprehensive oracle configuration for prediction market resolution.
@@ -359,6 +369,16 @@ impl OracleConfig {
         }
 
         Ok(())
+    }
+
+    /// Check if this config is supported
+    pub fn is_supported(&self) -> bool {
+        self.provider.is_supported()
+    }
+
+    /// Check if comparison is greater than
+    pub fn is_greater_than(&self, env: &Env) -> bool {
+        self.comparison == String::from_str(env, "gt")
     }
 }
 
@@ -1871,6 +1891,7 @@ mod tests {
             outcomes,
             env.ledger().timestamp() + 86400,
             oracle_config,
+            MarketState::Active,
         );
 
         assert!(market.is_active(env.ledger().timestamp()));
@@ -1882,7 +1903,7 @@ mod tests {
     fn test_reflector_asset() {
         let env = soroban_sdk::Env::default();
         let symbol = Symbol::new(&env, "BTC");
-        let asset = ReflectorAsset::other(symbol);
+        let asset = ReflectorAsset::Other(symbol);
 
         assert!(asset.is_other());
         assert!(!asset.is_stellar());
@@ -1909,6 +1930,7 @@ mod tests {
             outcomes,
             env.ledger().timestamp() + 86400,
             oracle_config,
+            MarketState::Active,
         );
 
         let state = MarketState::from_market(&market, env.ledger().timestamp());

@@ -1505,6 +1505,7 @@ impl FeeAnalytics {
 #[cfg(test)]
 pub mod testing {
     use super::*;
+    use soroban_sdk::testutils::Address as _;
 
     /// Create a test fee configuration
     pub fn create_test_fee_config() -> FeeConfig {
