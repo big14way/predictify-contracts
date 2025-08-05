@@ -49,7 +49,7 @@ impl TokenTest {
 }
 
 
-pub struct PredictifyTest<'a> {
+pub struct PredictifyTest {
     pub env: Env,
     pub contract_id: Address,
     pub token_test: TokenTest,
@@ -61,7 +61,7 @@ pub struct PredictifyTest<'a> {
 }
 
 
-impl<'a> PredictifyTest<'a> {
+impl PredictifyTest {
 
     pub fn setup() -> Self {
         let token_test = TokenTest::setup();
@@ -110,7 +110,7 @@ impl<'a> PredictifyTest<'a> {
     }
 
 
-    pub fn create_test_market(&self) {
+    pub fn create_test_market(&self) -> Symbol {
 
         let client = PredictifyHybridClient::new(&self.env, &self.contract_id);
 
@@ -440,10 +440,9 @@ fn test_market_duration_limits() {
 fn test_question_length_validation() {
     let test = PredictifyTest::setup();
     let _client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    let _outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut _outcomes = Vec::new(&test.env);
+    _outcomes.push_back(String::from_str(&test.env, "yes"));
+    _outcomes.push_back(String::from_str(&test.env, "no"));
 
     // Test maximum question length (should not exceed 500 characters)
     let long_question = "a".repeat(501);
@@ -604,6 +603,7 @@ fn test_fee_calculator_platform_fee() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     // Set total staked
@@ -641,6 +641,7 @@ fn test_fee_calculator_fee_breakdown() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     market.total_staked = 1_000_000_000; // 100 XLM
@@ -700,6 +701,7 @@ fn test_fee_validator_market_for_fee_collection() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     // Market not resolved
@@ -735,6 +737,7 @@ fn test_fee_utils_can_collect_fees() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     // Market not resolved
@@ -770,6 +773,7 @@ fn test_fee_utils_get_fee_eligibility() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     // Market not resolved
@@ -851,6 +855,7 @@ fn test_fee_analytics_market_fee_stats() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     market.total_staked = 1_000_000_000; // 100 XLM
@@ -874,6 +879,7 @@ fn test_fee_analytics_fee_efficiency() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     market.total_staked = 1_000_000_000; // 100 XLM
@@ -967,6 +973,7 @@ fn test_fee_calculator_dynamic_fee() {
         ],
         test.env.ledger().timestamp() + 86400,
         test.create_default_oracle_config(),
+        MarketState::Active,
     );
 
     // Small market (no adjustment)
@@ -2390,11 +2397,10 @@ fn test_event_helpers_create_context() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
-    let context_parts = vec![
-        &test.env,
-        String::from_str(&test.env, "Market"),
-        String::from_str(&test.env, "Vote"),
-        String::from_str(&test.env, "User"),
+    let mut context_parts = Vec::new(&test.env);
+    context_parts.push_back(String::from_str(&test.env, "Market"));
+    context_parts.push_back(String::from_str(&test.env, "Vote"));
+    context_parts.push_back(String::from_str(&test.env, "User"));
 
     let context = client.create_event_context(&context_parts);
     
@@ -2423,14 +2429,13 @@ fn test_event_documentation_event_types() {
     assert!(!docs.is_empty());
 
     // Check for common event types
-    let event_types = vec![
-        &test.env,
-        String::from_str(&test.env, "MarketCreated"),
-        String::from_str(&test.env, "VoteCast"),
-        String::from_str(&test.env, "OracleResult"),
-        String::from_str(&test.env, "MarketResolved"),
-        String::from_str(&test.env, "DisputeCreated"),
-        String::from_str(&test.env, "FeeCollected"),
+    let mut event_types = Vec::new(&test.env);
+    event_types.push_back(String::from_str(&test.env, "MarketCreated"));
+    event_types.push_back(String::from_str(&test.env, "VoteCast"));
+    event_types.push_back(String::from_str(&test.env, "OracleResult"));
+    event_types.push_back(String::from_str(&test.env, "MarketResolved"));
+    event_types.push_back(String::from_str(&test.env, "DisputeCreated"));
+    event_types.push_back(String::from_str(&test.env, "FeeCollected"));
 
     for event_type in event_types.iter() {
         // Verify documentation exists for each event type
@@ -2448,12 +2453,11 @@ fn test_event_documentation_usage_examples() {
     assert!(!examples.is_empty());
 
     // Check for common usage examples
-    let example_types = vec![
-        &test.env,
-        String::from_str(&test.env, "EmitMarketCreated"),
-        String::from_str(&test.env, "EmitVoteCast"),
-        String::from_str(&test.env, "GetMarketEvents"),
-        String::from_str(&test.env, "ValidateEvent"),
+    let mut example_types = Vec::new(&test.env);
+    example_types.push_back(String::from_str(&test.env, "EmitMarketCreated"));
+    example_types.push_back(String::from_str(&test.env, "EmitVoteCast"));
+    example_types.push_back(String::from_str(&test.env, "GetMarketEvents"));
+    example_types.push_back(String::from_str(&test.env, "ValidateEvent"));
 
     for example_type in example_types.iter() {
         // Verify examples exist for each type
@@ -2468,16 +2472,15 @@ fn test_event_testing_utilities() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test creating test events
-    let event_types = vec![
-        &test.env,
-        String::from_str(&test.env, "MarketCreated"),
-        String::from_str(&test.env, "VoteCast"),
-        String::from_str(&test.env, "OracleResult"),
-        String::from_str(&test.env, "MarketResolved"),
-        String::from_str(&test.env, "DisputeCreated"),
-        String::from_str(&test.env, "FeeCollected"),
-        String::from_str(&test.env, "ErrorLogged"),
-        String::from_str(&test.env, "PerformanceMetric"),
+    let mut event_types = Vec::new(&test.env);
+    event_types.push_back(String::from_str(&test.env, "MarketCreated"));
+    event_types.push_back(String::from_str(&test.env, "VoteCast"));
+    event_types.push_back(String::from_str(&test.env, "OracleResult"));
+    event_types.push_back(String::from_str(&test.env, "MarketResolved"));
+    event_types.push_back(String::from_str(&test.env, "DisputeCreated"));
+    event_types.push_back(String::from_str(&test.env, "FeeCollected"));
+    event_types.push_back(String::from_str(&test.env, "ErrorLogged"));
+    event_types.push_back(String::from_str(&test.env, "PerformanceMetric"));
 
     for event_type in event_types.iter() {
         let success = client.create_test_event(&event_type);
@@ -2703,10 +2706,9 @@ fn test_market_validation_creation() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test valid market creation inputs
-    let valid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut valid_outcomes = Vec::new(&test.env);
+    valid_outcomes.push_back(String::from_str(&test.env, "yes"));
+    valid_outcomes.push_back(String::from_str(&test.env, "no"));
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2729,10 +2731,9 @@ fn test_market_validation_invalid_question() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test market creation with empty question
-    let valid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut valid_outcomes = Vec::new(&test.env);
+    valid_outcomes.push_back(String::from_str(&test.env, "yes"));
+    valid_outcomes.push_back(String::from_str(&test.env, "no"));
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2754,9 +2755,8 @@ fn test_market_validation_invalid_outcomes() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test market creation with single outcome (too few)
-    let invalid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
+    let mut invalid_outcomes = Vec::new(&test.env);
+    invalid_outcomes.push_back(String::from_str(&test.env, "yes"));
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -2778,10 +2778,9 @@ fn test_market_validation_invalid_duration() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test market creation with invalid duration
-    let valid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut valid_outcomes = Vec::new(&test.env);
+    valid_outcomes.push_back(String::from_str(&test.env, "yes"));
+    valid_outcomes.push_back(String::from_str(&test.env, "no"));
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3101,10 +3100,9 @@ fn test_comprehensive_validation_scenario() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test comprehensive validation with multiple validation types
-    let valid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut valid_outcomes = Vec::new(&test.env);
+    valid_outcomes.push_back(String::from_str(&test.env, "yes"));
+    valid_outcomes.push_back(String::from_str(&test.env, "no"));
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3157,9 +3155,8 @@ fn test_validation_error_handling() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test validation with multiple errors
-    let invalid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"), // Only one outcome
+    let mut invalid_outcomes = Vec::new(&test.env);
+    invalid_outcomes.push_back(String::from_str(&test.env, "yes")); // Only one outcome
 
     let oracle_config = test.create_default_oracle_config();
 
@@ -3181,10 +3178,9 @@ fn test_validation_warnings_and_recommendations() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test validation that produces warnings and recommendations
-    let valid_outcomes = vec![
-        &test.env,
-        String::from_str(&test.env, "yes"),
-        String::from_str(&test.env, "no"),
+    let mut valid_outcomes = Vec::new(&test.env);
+    valid_outcomes.push_back(String::from_str(&test.env, "yes"));
+    valid_outcomes.push_back(String::from_str(&test.env, "no"));
 
     let oracle_config = test.create_default_oracle_config();
 

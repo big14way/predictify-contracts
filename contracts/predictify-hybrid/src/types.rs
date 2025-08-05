@@ -940,6 +940,18 @@ pub enum ReflectorAsset {
     Other(Symbol),
 }
 
+impl ReflectorAsset {
+    /// Check if this is an Other asset variant
+    pub fn is_other(&self) -> bool {
+        matches!(self, ReflectorAsset::Other(_))
+    }
+
+    /// Check if this is a Stellar asset variant
+    pub fn is_stellar(&self) -> bool {
+        matches!(self, ReflectorAsset::Stellar)
+    }
+}
+
 /// Pyth Network price data structure
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
