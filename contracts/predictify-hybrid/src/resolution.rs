@@ -5,7 +5,7 @@ use crate::{
     errors::Error,
     markets::{MarketAnalytics, MarketStateManager, MarketUtils, CommunityConsensus},
     oracles::{OracleFactory, OracleUtils},
-    types::{Market, OracleProvider},
+    types::{Market, MarketState, OracleProvider},
 };
 
 

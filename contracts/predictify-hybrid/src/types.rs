@@ -1854,11 +1854,9 @@ mod tests {
     fn test_market_creation() {
         let env = soroban_sdk::Env::default();
         let admin = Address::generate(&env);
-        let outcomes = vec![
-            &env,
-            String::from_str(&env, "yes"),
-            String::from_str(&env, "no"),
-        ];
+        let mut outcomes = Vec::new(&env);
+        outcomes.push_back(String::from_str(&env, "yes"));
+        outcomes.push_back(String::from_str(&env, "no"));
         let oracle_config = OracleConfig::new(
             OracleProvider::Pyth,
             String::from_str(&env, "BTC/USD"),
@@ -1894,11 +1892,9 @@ mod tests {
     fn test_market_state() {
         let env = soroban_sdk::Env::default();
         let admin = Address::generate(&env);
-        let outcomes = vec![
-            &env,
-            String::from_str(&env, "yes"),
-            String::from_str(&env, "no"),
-        ];
+        let mut outcomes = Vec::new(&env);
+        outcomes.push_back(String::from_str(&env, "yes"));
+        outcomes.push_back(String::from_str(&env, "no"));
         let oracle_config = OracleConfig::new(
             OracleProvider::Pyth,
             String::from_str(&env, "BTC/USD"),

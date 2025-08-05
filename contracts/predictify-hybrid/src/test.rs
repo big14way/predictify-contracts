@@ -1662,7 +1662,7 @@ fn test_environment_detection() {
 }
 
 #[test]
-fn test_configuration_constants() {
+fn test_configuration_constants_extended() {
     // Test that constants are properly defined
     assert_eq!(crate::config::DEFAULT_PLATFORM_FEE_PERCENTAGE, 2);
     assert_eq!(crate::config::DEFAULT_MARKET_CREATION_FEE, 10_000_000);
