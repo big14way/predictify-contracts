@@ -36,6 +36,9 @@ use soroban_sdk::{
 use alloc::string::ToString;
 
 // Global allocator for wasm32 target
+#[cfg(target_arch = "wasm32")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 // Import commonly used items from modules
 use markets::{MarketCreator, MarketStateManager};
@@ -594,7 +597,7 @@ impl PredictifyHybrid {
         env: Env,
         admin: Address,
         market_id: Symbol,
-        winning_outcome: String,
+        _winning_outcome: String,
     ) {
         admin.require_auth();
 

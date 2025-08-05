@@ -157,8 +157,8 @@ pub mod helpers {
 
     /// Generate detailed error message with context
     pub fn generate_detailed_error_message(error: &Error, context: &ErrorContext) -> String {
-        let base_message = error.description();
-        let operation = &context.operation;
+        let _base_message = error.description();
+        let _operation = &context.operation;
         
         match error {
             Error::Unauthorized => {
@@ -331,7 +331,7 @@ pub mod helpers {
         env: &Env,
         question: &String,
         outcomes: &Vec<String>,
-        duration_days: u32,
+        _duration_days: u32,
     ) -> Result<(), Error> {
         if question.is_empty() {
             panic_with_error!(env, Error::InvalidInput);
@@ -353,15 +353,15 @@ pub mod helpers {
 
     /// Get technical details for debugging
     fn get_technical_details(error: &Error, context: &ErrorContext) -> String {
-        let error_code = error.code();
-        let error_num = *error as u32;
-        let timestamp = context.timestamp;
+        let _error_code = error.code();
+        let _error_num = *error as u32;
+        let _timestamp = context.timestamp;
         
         String::from_str(context.call_chain.env(), "Error details for debugging")
     }
 
     /// Emit error event for logging
-    pub fn emit_error_event(env: &Env, detailed_error: &DetailedError) {
+    pub fn emit_error_event(_env: &Env, _detailed_error: &DetailedError) {
         // Emit error event for debugging
         // In a real implementation, this would emit a proper Soroban event
     }

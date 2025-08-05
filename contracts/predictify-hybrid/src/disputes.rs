@@ -2248,7 +2248,7 @@ impl DisputeUtils {
 
     /// Get dispute voting data
 
-    pub fn get_dispute_voting(env: &Env, dispute_id: &Symbol) -> Result<DisputeVoting, Error> {
+    pub fn get_dispute_voting(env: &Env, _dispute_id: &Symbol) -> Result<DisputeVoting, Error> {
         let key = symbol_short!("dispute_v");
 
         env.storage()
@@ -2259,7 +2259,7 @@ impl DisputeUtils {
 
     /// Store dispute voting data
 
-    pub fn store_dispute_voting(env: &Env, dispute_id: &Symbol, voting: &DisputeVoting) -> Result<(), Error> {
+    pub fn store_dispute_voting(env: &Env, _dispute_id: &Symbol, voting: &DisputeVoting) -> Result<(), Error> {
         let key = symbol_short!("dispute_v");
 
         env.storage().persistent().set(&key, voting);
@@ -2268,7 +2268,7 @@ impl DisputeUtils {
 
     /// Store dispute vote
 
-    pub fn store_dispute_vote(env: &Env, dispute_id: &Symbol, vote: &DisputeVote) -> Result<(), Error> {
+    pub fn store_dispute_vote(env: &Env, _dispute_id: &Symbol, vote: &DisputeVote) -> Result<(), Error> {
         let key = symbol_short!("vote");
 
         env.storage().persistent().set(&key, vote);
@@ -2276,7 +2276,7 @@ impl DisputeUtils {
     }
 
     /// Get dispute votes
-    pub fn get_dispute_votes(env: &Env, dispute_id: &Symbol) -> Result<Vec<DisputeVote>, Error> {
+    pub fn get_dispute_votes(env: &Env, _dispute_id: &Symbol) -> Result<Vec<DisputeVote>, Error> {
         // This is a simplified implementation - in a real system you'd need to track all votes
         let votes = Vec::new(env);
 
@@ -2379,7 +2379,7 @@ impl DisputeUtils {
 
     /// Emit dispute vote event
 
-    pub fn emit_dispute_vote_event(env: &Env, dispute_id: &Symbol, user: &Address, vote: bool, stake: i128) {
+    pub fn emit_dispute_vote_event(env: &Env, _dispute_id: &Symbol, user: &Address, vote: bool, stake: i128) {
 
         // In a real implementation, this would emit an event
         // For now, we'll just store it in persistent storage
@@ -2390,7 +2390,7 @@ impl DisputeUtils {
 
     /// Emit fee distribution event
 
-    pub fn emit_fee_distribution_event(env: &Env, dispute_id: &Symbol, distribution: &DisputeFeeDistribution) {
+    pub fn emit_fee_distribution_event(env: &Env, _dispute_id: &Symbol, distribution: &DisputeFeeDistribution) {
 
         // In a real implementation, this would emit an event
         // For now, we'll just store it in persistent storage
@@ -2401,7 +2401,7 @@ impl DisputeUtils {
     /// Emit dispute escalation event
     pub fn emit_dispute_escalation_event(
         env: &Env,
-        dispute_id: &Symbol,
+        _dispute_id: &Symbol,
         user: &Address,
         escalation: &DisputeEscalation,
     ) {
@@ -2458,8 +2458,8 @@ impl DisputeUtils {
 
     /// Check for expired timeouts
     pub fn check_expired_timeouts(env: &Env) -> Vec<Symbol> {
-        let mut expired_disputes = Vec::new(env);
-        let current_time = env.ledger().timestamp();
+        let expired_disputes = Vec::new(env);
+        let _current_time = env.ledger().timestamp();
 
         // This is a simplified implementation
         // In a real system, you would iterate through all timeouts and check expiration
@@ -2589,7 +2589,7 @@ impl DisputeAnalytics {
     }
 
     /// Calculate timeout statistics
-    pub fn calculate_timeout_stats(env: &Env) -> TimeoutStats {
+    pub fn calculate_timeout_stats(_env: &Env) -> TimeoutStats {
         // This is a simplified implementation
         // In a real system, you would iterate through all timeouts and calculate statistics
         TimeoutStats {

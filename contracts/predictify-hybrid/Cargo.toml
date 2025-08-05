@@ -11,7 +11,7 @@ doctest = false
 [dependencies]
 soroban-sdk = { workspace = true }
 
-linked_list_allocator = "0.10"
+wee_alloc = "0.4.5"
 
 
 

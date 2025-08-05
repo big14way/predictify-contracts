@@ -2668,7 +2668,6 @@ impl MarketStateLogic {
     /// }
     /// ```
     pub fn validate_market_state_consistency(env: &Env, market: &Market) -> Result<(), Error> {
-        use crate::MarketState::*;
         let now = env.ledger().timestamp();
         match market.state {
             MarketState::Active => {

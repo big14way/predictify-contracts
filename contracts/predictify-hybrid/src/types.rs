@@ -1,5 +1,5 @@
 
-use soroban_sdk::{contracttype, vec, Address, Env, Map, String, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Env, Map, String, Symbol, Vec};
 use crate::errors::Error;
 
 // ===== MARKET STATE =====
@@ -985,7 +985,7 @@ pub struct ReflectorPriceData {
 
 impl ReflectorPriceData {
     /// Create new Reflector price data
-    pub fn new(env: &Env, price: i128, timestamp: u64, source: String) -> Self {
+    pub fn new(_env: &Env, price: i128, timestamp: u64, source: String) -> Self {
         Self { price, timestamp, source }
     }
 
