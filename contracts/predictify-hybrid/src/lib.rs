@@ -352,21 +352,6 @@ impl PredictifyHybrid {
         }
     }
 
-    // Resolves a market by combining oracle results and community votes
-    pub fn resolve_market(env: Env, market_id: Symbol) -> String {
-        match resolution::MarketResolutionManager::resolve_market(&env, &market_id) {
-            Ok(resolution) => resolution.final_outcome,
-            Err(e) => panic_with_error!(env, e),
-        }
-    }
-
-    // Resolve a dispute and determine final market outcome
-    pub fn resolve_dispute(env: Env, admin: Address, market_id: Symbol) -> String {
-        match DisputeManager::resolve_dispute(&env, market_id, admin) {
-            Ok(resolution) => resolution.final_outcome,
-            Err(e) => panic_with_error!(env, e),
-        }
-    }
 
     // ===== RESOLUTION SYSTEM METHODS =====
 
@@ -380,12 +365,7 @@ impl PredictifyHybrid {
         MarketResolutionManager::get_market_resolution(&env, &market_id).unwrap_or_default()
     }
 
-    // Get resolution analytics
-    pub fn get_resolution_analytics(env: Env) -> resolution::ResolutionAnalytics {
-        resolution::MarketResolutionAnalytics::calculate_resolution_analytics(&env).unwrap_or_default()
-    }
-
-    // Get oracle statistics
+    /// Get oracle statistics
     pub fn get_oracle_stats(env: Env) -> resolution::OracleStats {
         resolution::OracleResolutionAnalytics::get_oracle_stats(&env).unwrap_or_default()
     }
@@ -684,9 +664,9 @@ impl PredictifyHybrid {
             Err(e) => panic_with_error!(env, e),
 
         }
+    }
 
-
-    // Helper function to create a market with Reflector oracle for specific assets
+    /// Helper function to create a market with Reflector oracle for specific assets
     #[allow(clippy::too_many_arguments)]
     pub fn create_reflector_asset_market(
         env: Env,
@@ -778,38 +758,6 @@ impl PredictifyHybrid {
     /// - Market must exist and be past its end time
     /// - Market must not already have an oracle result
     /// - Oracle contract must be accessible and responsive
-    pub fn fetch_oracle_result(
-        env: Env,
-        market_id: Symbol,
-        oracle_contract: Address,
-    ) -> Result<String, Error> {
-        // Get the market from storage
-        let market = env
-            .storage()
-            .persistent()
-            .get::<Symbol, Market>(&market_id)
-            .ok_or(Error::MarketNotFound)?;
-
-
-        // Use error helper for admin validation
-        let _ = errors::helpers::require_admin(&env, &admin, &stored_admin);
-
-
-        // Check if market has ended
-        let current_time = env.ledger().timestamp();
-        if current_time < market.end_time {
-            return Err(Error::MarketClosed);
-        }
-
-        // Get oracle result using the resolution module
-        let oracle_resolution = resolution::OracleResolutionManager::fetch_oracle_result(
-            &env,
-            &market_id,
-            &oracle_contract,
-        )?;
-
-        Ok(oracle_resolution.oracle_result)
-    }
 
     /// Resolves a market automatically using oracle data and community consensus.
     ///
@@ -1289,19 +1237,8 @@ impl PredictifyHybrid {
     ) -> Result<disputes::DisputeResolution, Error> {
         admin.require_auth();
 
-
-        match VotingManager::update_dispute_thresholds(&env, admin, market_id, new_threshold, reason) {
-            Ok(threshold) => threshold,
-            Err(_) => voting::DisputeThreshold {
-                market_id: symbol_short!("error"),
-                base_threshold: 10_000_000,
-                adjusted_threshold: 10_000_000,
-                market_size_factor: 0,
-                activity_factor: 0,
-                complexity_factor: 0,
-                timestamp: 0,
-            },
-        }
+        // Use the dispute manager to resolve the dispute
+        DisputeManager::resolve_dispute(&env, market_id, admin)
     }
 
     /// Get threshold history for a market
