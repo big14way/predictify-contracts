@@ -946,8 +946,7 @@ impl OracleFactory {
                 Ok(OracleInstance::Reflector(oracle))
             }
 
-            OracleProvider::BandProtocol | OracleProvider::DIA => Err(Error::InvalidConfig),
-
+            OracleProvider::Pyth | OracleProvider::BandProtocol | OracleProvider::DIA => Err(Error::InvalidConfig),
         }
     }
 

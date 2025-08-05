@@ -12,6 +12,7 @@ mod extensions;
 mod fees;
 mod markets;
 mod oracles;
+mod reentrancy;
 mod resolution;
 mod storage;
 mod types;
@@ -42,6 +43,7 @@ use voting::VotingManager;
 use disputes::DisputeManager;
 use extensions::{ExtensionManager, ExtensionUtils, ExtensionValidator};
 use fees::FeeManager;
+use reentrancy::{validate_no_reentrancy, protect_external_call};
 use resolution::{OracleResolutionManager, MarketResolutionManager};
 use config::{ConfigManager, ConfigUtils, ContractConfig, Environment};
 use utils::{TimeUtils, StringUtils, NumericUtils, ValidationUtils, CommonUtils};
@@ -317,7 +319,7 @@ impl PredictifyHybrid {
             oracle_contract.clone(),
             || {
                 // Execute the oracle fetch operation
-                resolution::OracleResolutionManager::fetch_oracle_result(&env, &market_id, &oracle_contract)
+                resolution::OracleResolutionManager::fetchoracle_result(&env, &market_id, &oracle_contract)
             },
         );
         
@@ -1006,7 +1008,7 @@ impl PredictifyHybrid {
             Err(e) => return Err(e),
         };
 
-        let stats = markets::MarketAnalytics::calculate_market_stats(&env, &market);
+        let stats = markets::MarketAnalytics::get_market_stats(&market);
         Ok(stats)
     }
 
@@ -1054,7 +1056,20 @@ impl PredictifyHybrid {
             user.clone(),
             || {
                 // Execute the dispute operation
-                DisputeManager::process_dispute(&env, user, market_id, stake, None)
+                match DisputeManager::process_dispute(&env, user.clone(), market_id.clone(), stake, None) {
+                    Ok(()) => {
+                        // Create and return dispute object
+                        Ok(disputes::Dispute {
+                            user: user.clone(),
+                            market_id: market_id.clone(),
+                            stake,
+                            timestamp: env.ledger().timestamp(),
+                            reason: None,
+                            status: disputes::DisputeStatus::Active,
+                        })
+                    },
+                    Err(e) => Err(e),
+                }
             },
         );
         
@@ -1171,7 +1186,7 @@ impl PredictifyHybrid {
 
     /// Get dispute votes
     pub fn get_dispute_votes(env: Env, dispute_id: Symbol) -> Vec<disputes::DisputeVote> {
-        match DisputeManager::get_dispute_votes(&env, dispute_id) {
+        match DisputeManager::get_dispute_votes(&env, &dispute_id) {
             Ok(votes) => votes,
             Err(_) => vec![&env],
         }
@@ -1397,8 +1412,8 @@ impl PredictifyHybrid {
     // ===== UTILITY-BASED METHODS =====
 
     /// Format duration in human-readable format
-    pub fn format_duration(seconds: u64) -> String {
-        TimeUtils::format_duration(seconds)
+    pub fn format_duration(env: Env, seconds: u64) -> String {
+        TimeUtils::format_duration(&env, seconds)
     }
 
     /// Calculate percentage with custom denominator
@@ -1489,8 +1504,8 @@ impl PredictifyHybrid {
     }
 
     /// Validate future timestamp
-    pub fn validate_future_timestamp(timestamp: u64) -> bool {
-        ValidationUtils::validate_future_timestamp(&timestamp)
+    pub fn validate_future_timestamp(env: Env, timestamp: u64) -> bool {
+        ValidationUtils::validate_future_timestamp(&env, &timestamp)
     }
 
     /// Get time utilities information
@@ -1570,9 +1585,8 @@ impl PredictifyHybrid {
     }
 
     /// Get event system overview
-    pub fn get_event_system_overview() -> String {
-        EventDocumentation::get_overview()
-
+    pub fn get_event_system_overview(env: Env) -> String {
+        EventDocumentation::get_overview(&env)
     }
 
     /// Clean up old market data based on age and state
@@ -1694,7 +1708,7 @@ impl PredictifyHybrid {
     pub fn validate_oracle_config(env: Env, oracle_config: OracleConfig) -> ValidationResult {
         let mut result = ValidationResult::valid();
         
-        if let Err(_error) = ValidationOracleValidator::validate_oracle_config(&env, &oracle_config) {
+        if let Err(_error) = crate::errors::helpers::require_valid_oracle_config(&env, &oracle_config) {
             result.add_error();
         }
 

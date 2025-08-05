@@ -905,7 +905,7 @@ impl OracleResolutionManager {
         };
 
         // Store the result in the market
-        MarketStateManager::setoracle_result(&mut market, outcome.clone());
+        MarketStateManager::set_oracle_result(&mut market, outcome.clone());
         MarketStateManager::update_market(env, market_id, &market);
 
         Ok(resolution)

@@ -110,7 +110,7 @@ pub struct ErrorContext {
 }
 
 /// Detailed error information
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DetailedError {
     pub error: Error,
     pub context: ErrorContext,
@@ -193,7 +193,7 @@ pub mod helpers {
 
     /// Handle error recovery based on error type and context
     pub fn handle_error_recovery(env: &Env, error: &Error, context: &ErrorContext) -> Result<bool, Error> {
-        let recovery_strategy = Self::get_error_recovery_strategy(error);
+        let recovery_strategy = get_error_recovery_strategy(error);
         
         match recovery_strategy {
             RecoveryStrategy::Retry => {
@@ -234,6 +234,10 @@ pub mod helpers {
                 // Abort the operation
                 Ok(false)
             }
+            RecoveryStrategy::Fallback => {
+                // Use fallback approach
+                Ok(true)
+            }
             RecoveryStrategy::ManualIntervention => {
                 // Require manual intervention
                 Err(Error::InvalidState)
@@ -263,7 +267,7 @@ pub mod helpers {
     pub fn log_error_details(env: &Env, detailed_error: &DetailedError) {
         // In a real implementation, this would log to a persistent storage
         // For now, we'll just emit the error event
-        Self::emit_error_event(env, detailed_error);
+        emit_error_event(env, detailed_error);
     }
 
     /// Get error recovery strategy based on error type
@@ -354,5 +358,11 @@ pub mod helpers {
         let timestamp = context.timestamp;
         
         String::from_str(context.call_chain.env(), "Error details for debugging")
+    }
+
+    /// Emit error event for logging
+    pub fn emit_error_event(env: &Env, detailed_error: &DetailedError) {
+        // Emit error event for debugging
+        // In a real implementation, this would emit a proper Soroban event
     }
 }
