@@ -308,7 +308,15 @@ impl PythOracle {
         self.feed_configurations.len() as u32
     }
 
-
+    /// Get price for a specific feed ID (mock implementation)
+    ///
+    /// # Arguments
+    /// * `_env` - Soroban environment (unused in mock)
+    /// * `feed_id` - The feed ID to get price for
+    ///
+    /// # Returns
+    /// Result containing the price or error
+    pub fn get_price(&self, _env: &Env, feed_id: &String) -> Result<i128, Error> {
         // Return different mock prices based on the asset
         if feed_id == &String::from_str(_env, "BTC/USD") {
             Ok(2_600_000) // $26,000 for BTC
@@ -318,7 +326,6 @@ impl PythOracle {
             Ok(12_00) // $0.12 for XLM
         } else {
             Ok(2_600_000) // Default to BTC price
-
         }
     }
 

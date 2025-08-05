@@ -250,11 +250,12 @@ pub mod helpers {
         }
     }
 
-
+    /// Validate duration days parameter
+    pub fn validate_duration_days(env: &Env, duration_days: u32) -> Result<(), Error> {
         if duration_days == 0 || duration_days > 365 {
             panic_with_error!(env, Error::InvalidInput);
-
         }
+        Ok(())
     }
 
     /// Get technical details for debugging

@@ -1020,6 +1020,13 @@ impl ReflectorPriceData {
             return Err(Error::OraclePriceOutOfRange);
         }
 
+        if self.timestamp == 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(())
+    }
+}
 
 /// Market extension data structure for time-based market lifecycle management.
 ///
@@ -1272,35 +1279,6 @@ impl MarketExtension {
             timestamp: env.ledger().timestamp(),
         }
     }
-}
-
-
-    /// Check if an asset is supported
-    pub fn supports_asset(&self, asset: &ReflectorAsset) -> bool {
-        self.assets.contains(asset)
-    }
-
-    /// Validate the configuration
-    pub fn validate(&self) -> Result<(), Error> {
-        if self.assets.is_empty() {
-            return Err(Error::InvalidConfig);
-        }
-
-        if self.decimals == 0 {
-            return Err(Error::InvalidConfig);
-        }
-
-        if self.period == 0 {
-            return Err(Error::InvalidConfig);
-        }
-
-        if self.resolution == 0 {
-            return Err(Error::InvalidConfig);
-        }
-
-        Ok(())
-    }
-
 }
 
 // ===== MARKET CREATION TYPES =====

@@ -1494,20 +1494,13 @@ impl EventValidator {
     }
 
     /// Validate extension requested event
-
-    pub fn validate_extension_requested_event(event: &ExtensionRequestedEvent) -> Result<(), Error> {
-        // Skip validation for market_id (Symbol validation is complex)
-
-
     pub fn validate_extension_requested_event(
         event: &ExtensionRequestedEvent,
     ) -> Result<(), Error> {
         // Remove empty check for Symbol since it doesn't have is_empty method
         // Market ID validation is handled by the Symbol type itself
 
-
         if event.reason.is_empty() {
-
             return Err(Error::InvalidInput);
         }
 

@@ -495,18 +495,26 @@ impl PredictifyHybrid {
         resolution::OracleResolutionAnalytics::get_oracle_stats(&env).unwrap_or_default()
     }
 
+    /// Process winnings claim and calculate payouts for resolved markets
+    pub fn process_winnings_claim(env: Env, user: Address, market_id: Symbol) -> Result<i128, Error> {
+        // Get the market from storage
+        let mut market = env
+            .storage()
+            .persistent()
+            .get::<Symbol, Market>(&market_id)
+            .ok_or(Error::MarketNotFound)?;
 
         // Check if market is resolved
         let winning_outcome = match &market.winning_outcome {
             Some(outcome) => outcome,
-            None => panic_with_error!(env, Error::MarketNotResolved),
+            None => return Err(Error::MarketNotResolved),
         };
 
         // Get user's vote
         let user_outcome = market
             .votes
             .get(user.clone())
-            .unwrap_or_else(|| panic_with_error!(env, Error::NothingToClaim));
+            .ok_or(Error::NothingToClaim)?;
 
         let user_stake = market.stakes.get(user.clone()).unwrap_or(0);
 
@@ -524,23 +532,17 @@ impl PredictifyHybrid {
                 let user_share = (user_stake * (PERCENTAGE_DENOMINATOR - FEE_PERCENTAGE))
                     / PERCENTAGE_DENOMINATOR;
                 let total_pool = market.total_staked;
-                let _payout = (user_share * total_pool) / winning_total;
+                let payout = (user_share * total_pool) / winning_total;
 
-                // In a real implementation, transfer tokens here
-                // For now, we just mark as claimed
+                // Mark as claimed
+                market.claimed.set(user.clone(), true);
+                env.storage().persistent().set(&market_id, &market);
 
-            resolution::ResolutionState::MarketResolved => {
-                validation.recommendations.push_back(String::from_str(&env, "Market already resolved"));
-            }
-            resolution::ResolutionState::Disputed => {
-                validation.recommendations.push_back(String::from_str(&env, "Resolution disputed, consider admin override"));
-            }
-            resolution::ResolutionState::Finalized => {
-                validation.recommendations.push_back(String::from_str(&env, "Resolution finalized"));
+                return Ok(payout);
             }
         }
 
-        validation
+        Err(Error::NothingToClaim)
     }
 
     // Get resolution state for a market
@@ -1179,7 +1181,20 @@ impl PredictifyHybrid {
     pub fn get_market_analytics(
         env: Env,
         market_id: Symbol,
+    ) -> Result<markets::MarketStats, Error> {
+        let market = match markets::MarketStateManager::get_market(&env, &market_id) {
+            Ok(m) => m,
+            Err(e) => return Err(e),
+        };
 
+        let stats = markets::MarketAnalytics::calculate_market_stats(&env, &market);
+        Ok(stats)
+    }
+
+    /// Validate extension conditions for a market
+    pub fn validate_extension_conditions(
+        env: Env,
+        market_id: Symbol,
         additional_days: u32,
     ) -> bool {
         ExtensionValidator::validate_extension_conditions(&env, &market_id, additional_days).is_ok()
@@ -1190,8 +1205,15 @@ impl PredictifyHybrid {
         ExtensionValidator::check_extension_limits(&env, &market_id, additional_days).is_ok()
     }
 
-
-        Ok(stats)
+    /// Get market extension history
+    pub fn get_market_extension_history(
+        env: Env,
+        market_id: Symbol,
+    ) -> Vec<types::MarketExtension> {
+        match ExtensionManager::get_market_extension_history(&env, market_id) {
+            Ok(history) => history,
+            Err(_) => vec![&env],
+        }
     }
 
     /// Dispute a market resolution
@@ -1199,11 +1221,27 @@ impl PredictifyHybrid {
         env: Env,
         user: Address,
         market_id: Symbol,
+        stake: i128,
+    ) -> Result<disputes::Dispute, Error> {
+        user.require_auth();
 
-    ) -> Vec<types::MarketExtension> {
-        match ExtensionManager::get_market_extension_history(&env, market_id) {
-            Ok(history) => history,
-            Err(_) => vec![&env],
+        // Validate no reentrancy
+        validate_no_reentrancy(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        
+        // Protect against reentrancy attacks
+        let result = protect_external_call(
+            &env,
+            symbol_short!("dispute"),
+            user.clone(),
+            || {
+                // Execute the dispute operation
+                DisputeManager::process_dispute(&env, user, market_id, stake, None)
+            },
+        );
+        
+        match result {
+            Ok(dispute) => Ok(dispute),
+            Err(e) => Err(e),
         }
     }
 
@@ -1409,18 +1447,22 @@ impl PredictifyHybrid {
     pub fn initialize_with_config(env: Env, admin: Address, environment: Environment) {
         // Store admin address
         env.storage()
-
             .persistent()
-            .get(&Symbol::new(&env, "Admin"))
-            .unwrap_or_else(|| {
-                panic_with_error!(env, Error::Unauthorized);
-            });
+            .set(&Symbol::new(&env, "Admin"), &admin);
 
-        if admin != stored_admin {
-            panic_with_error!(env, Error::Unauthorized);
+        // Initialize configuration based on environment
+        let config = match environment {
+            Environment::Development => ConfigManager::get_development_config(&env),
+            Environment::Testnet => ConfigManager::get_testnet_config(&env),
+            Environment::Mainnet => ConfigManager::get_mainnet_config(&env),
+            Environment::Custom => ConfigManager::get_development_config(&env), // Default to development for custom
+        };
+
+        // Store configuration
+        match ConfigManager::store_config(&env, &config) {
+            Ok(_) => (),
+            Err(e) => panic_with_error!(env, e),
         }
-
-        disputes::DisputeManager::resolve_dispute(&env, market_id, admin)
     }
 
 
@@ -1500,14 +1542,36 @@ impl PredictifyHybrid {
         ConfigUtils::get_config_summary(&config)
     }
 
+    /// Extend market duration with validation and fee handling
+    pub fn extend_market_duration(
+        env: Env,
+        admin: Address,
+        market_id: Symbol,
+        additional_days: u32,
+        reason: String,
+    ) -> Result<(), Error> {
+        admin.require_auth();
 
-        extensions::ExtensionManager::extend_market_duration(
+        // Verify admin
+        let stored_admin: Address = env
+            .storage()
+            .persistent()
+            .get(&Symbol::new(&env, "Admin"))
+            .expect("Admin not set");
+
+        // Use error helper for admin validation
+        let _ = errors::helpers::require_admin(&env, &admin, &stored_admin);
+
+        match extensions::ExtensionManager::extend_market_duration(
             &env,
             admin,
             market_id,
             additional_days,
             reason,
-        )
+        ) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     // ===== STORAGE OPTIMIZATION FUNCTIONS =====
@@ -1519,7 +1583,7 @@ impl PredictifyHybrid {
             Err(e) => return Err(e),
         };
 
-        config::ConfigValidator::validate_contract_config(&config).is_ok()
+        storage::StorageOptimizer::compress_market_data(&env, &market)
     }
 
     // ===== UTILITY-BASED METHODS =====
@@ -1826,8 +1890,7 @@ impl PredictifyHybrid {
             result.add_error();
         }
 
-        
-        Ok(storage::StorageUtils::get_storage_efficiency_score(&market))
+        result
     }
 
     /// Get storage recommendations for a market
