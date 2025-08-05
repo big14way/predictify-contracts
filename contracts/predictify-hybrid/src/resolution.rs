@@ -69,7 +69,7 @@ pub enum ResolutionState {
 /// # let oracle_contract = Address::generate(&env);
 ///
 /// // Fetch oracle resolution for a market
-/// let oracle_resolution = OracleResolutionManager::fetch_oracle_result(
+/// let oracle_resolution = OracleResolutionManager::fetchoracle_result(
 ///     &env,
 ///     &market_id,
 ///     &oracle_contract
@@ -751,7 +751,7 @@ pub struct ResolutionValidation {
 /// # let oracle_contract = Address::generate(&env);
 ///
 /// // Fetch oracle resolution for a market
-/// let oracle_resolution = OracleResolutionManager::fetch_oracle_result(
+/// let oracle_resolution = OracleResolutionManager::fetchoracle_result(
 ///     &env,
 ///     &market_id,
 ///     &oracle_contract
@@ -865,7 +865,7 @@ pub struct OracleResolutionManager;
 
 impl OracleResolutionManager {
     /// Fetch oracle result for a market
-    pub fn fetch_oracle_result(
+    pub fn fetchoracle_result(
         env: &Env,
         market_id: &Symbol,
         oracle_contract: &Address,
@@ -905,7 +905,7 @@ impl OracleResolutionManager {
         };
 
         // Store the result in the market
-        MarketStateManager::set_oracle_result(&mut market, outcome.clone());
+        MarketStateManager::setoracle_result(&mut market, outcome.clone());
         MarketStateManager::update_market(env, market_id, &market);
 
         Ok(resolution)
@@ -1408,7 +1408,7 @@ pub struct MarketResolutionAnalytics;
 impl MarketResolutionAnalytics {
     /// Determine resolution method
     pub fn determine_resolution_method(
-        _oracle_result: &String,
+        oracle_result: &String,
         community_consensus: &CommunityConsensus,
     ) -> ResolutionMethod {
 
@@ -1428,7 +1428,7 @@ impl MarketResolutionAnalytics {
 
     /// Calculate confidence score
     pub fn calculate_confidence_score(
-        _oracle_result: &String,
+        oracle_result: &String,
         community_consensus: &CommunityConsensus,
         method: &ResolutionMethod,
     ) -> u32 {
@@ -1594,7 +1594,7 @@ impl ResolutionTesting {
     ) -> Result<MarketResolution, Error> {
         // Fetch oracle result
         let _oracle_resolution =
-            OracleResolutionManager::fetch_oracle_result(env, market_id, oracle_contract)?;
+            OracleResolutionManager::fetchoracle_result(env, market_id, oracle_contract)?;
 
         // Resolve market
         let market_resolution = MarketResolutionManager::resolve_market(env, market_id)?;
@@ -1762,7 +1762,7 @@ mod tests {
         });
 
         // Multiple oracle resolution calls
-        client.fetch_oracle_result(&test.market_id, &test.pyth_contract);
+        client.fetchoracle_result(&test.market_id, &test.pyth_contract);
         // Multiple market resolution calls
         client.resolve_market(&test.market_id);
         // Multiple analytics calls

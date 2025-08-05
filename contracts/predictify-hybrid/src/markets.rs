@@ -2183,13 +2183,13 @@ impl MarketTestHelpers {
     /// // Use config for testing market creation
     /// // let market_id = MarketCreator::create_market(...);
     /// ```
-    pub fn create_test_market_config(_env: &Env) -> MarketCreationParams {
+    pub fn create_test_market_config(env: &Env) -> MarketCreationParams {
         MarketCreationParams::new(
             Address::from_str(
-                _env,
+                env,
                 "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
             ),
-            String::from_str(_env, "Will BTC go above $25,000 by December 31?"),
+            String::from_str(env, "Will BTC go above $25,000 by December 31?"),
             vec![
 
                 &env,

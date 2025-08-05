@@ -920,6 +920,19 @@ pub enum ReflectorAsset {
     Other(Symbol),
 }
 
+/// Pyth Network price data structure
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PythPrice {
+    /// Price value
+    pub price: i128,
+    /// Confidence interval
+    pub conf: u64,
+    /// Price exponent
+    pub expo: i32,
+    /// Publish timestamp
+    pub publish_time: u64,
+}
 
 impl PythPrice {
     /// Create a new Pyth price
@@ -1616,11 +1629,13 @@ pub struct ExtensionStats {
     /// Total number of extensions
     pub total_extensions: u32,
     /// Total days extended
-    pub total_days_extended: u32,
-    /// Average extension duration
-    pub average_extension_days: u32,
-    /// Number of admin extensions
-    pub admin_extensions: u32,
+    pub total_extension_days: u32,
+    /// Maximum allowed extension days
+    pub max_extension_days: u32,
+    /// Whether the market can be extended
+    pub can_extend: bool,
+    /// Extension fee per day
+    pub extension_fee_per_day: i128,
 }
 
 impl MarketState {

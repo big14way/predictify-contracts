@@ -101,11 +101,12 @@ impl Error {
 }
 
 /// Error context for detailed error handling
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ErrorContext {
     pub operation: String,
     pub call_chain: Vec<String>,
     pub env: Env,
+    pub timestamp: u64,
 }
 
 /// Detailed error information
@@ -127,6 +128,14 @@ pub enum RecoveryStrategy {
     NoRecovery,
     /// Fallback to alternative
     Fallback,
+    /// Retry with delay
+    RetryWithDelay,
+    /// Use alternative method
+    AlternativeMethod,
+    /// Skip the operation
+    Skip,
+    /// Abort the operation
+    Abort,
 }
 
 /// Error helper functions for common scenarios

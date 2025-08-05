@@ -201,9 +201,9 @@ impl PredictifyHybrid {
             Err(e) => panic_with_error!(env, e),
 
         }
+    }
 
-
-    // Distribute winnings to users
+    /// Distribute winnings to users
     pub fn claim_winnings(env: Env, user: Address, market_id: Symbol) {
         // Require authentication
         user.require_auth();
@@ -493,12 +493,6 @@ impl PredictifyHybrid {
         DisputeManager::get_user_dispute_stake(&env, market_id, user).unwrap_or_default()
     }
 
-
-        // Mark as claimed
-        market.claimed.set(user.clone(), true);
-        env.storage().persistent().set(&market_id, &market);
-    }
-
     /// Retrieves complete market information by market identifier.
     ///
     /// This function provides read-only access to all market data including
@@ -720,24 +714,6 @@ impl PredictifyHybrid {
     }
 
     // ===== MARKET EXTENSION FUNCTIONS =====
-
-
-        // Check if market has ended
-        if env.ledger().timestamp() < market.end_time {
-            panic_with_error!(env, Error::MarketClosed);
-        }
-
-        // Validate winning outcome
-        let outcome_exists = market.outcomes.iter().any(|o| o == winning_outcome);
-        if !outcome_exists {
-            panic_with_error!(env, Error::InvalidOutcome);
-        }
-
-        // Set winning outcome and update state
-        market.winning_outcome = Some(winning_outcome);
-        market.state = MarketState::Resolved;
-        env.storage().persistent().set(&market_id, &market);
-    }
 
     /// Fetches oracle result for a market from external oracle contracts.
     ///
