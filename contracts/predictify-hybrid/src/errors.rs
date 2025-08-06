@@ -364,5 +364,7 @@ pub mod helpers {
     pub fn emit_error_event(_env: &Env, _detailed_error: &DetailedError) {
         // Emit error event for debugging
         // In a real implementation, this would emit a proper Soroban event
+
     }
 }
+

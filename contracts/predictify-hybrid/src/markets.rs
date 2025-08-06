@@ -24,6 +24,8 @@ use crate::{
 pub struct MarketCreator;
 
 impl MarketCreator {
+    /// Create a new market with full configuration
+
     /// Creates a new prediction market with comprehensive configuration options.
     ///
     /// This is the primary market creation function that supports all oracle types
@@ -84,6 +86,7 @@ impl MarketCreator {
     ///     oracle_config
     /// ).expect("Market creation should succeed");
     /// ```
+
     pub fn create_market(
         env: &Env,
         admin: Address,
@@ -123,6 +126,9 @@ impl MarketCreator {
 
         Ok(market_id)
     }
+
+
+    /// Create a market with Reflector oracle
 
     /// Creates a prediction market using Reflector oracle as the data source.
     ///
@@ -177,6 +183,7 @@ impl MarketCreator {
     ///     String::from_str(&env, "gt")
     /// ).expect("Reflector market creation should succeed");
     /// ```
+
     pub fn create_reflector_market(
 
         env: &Env,
@@ -574,49 +581,7 @@ impl MarketValidator {
         Ok(())
     }
 
-    /// Validates that a voting outcome is valid for the specified market.
-    ///
-    /// This function checks if the provided outcome string matches one of the
-    /// predefined outcomes for the market. It performs case-sensitive string
-    /// comparison to ensure exact matching.
-    ///
-    /// # Parameters
-    ///
-    /// * `_env` - The Soroban environment for blockchain operations
-    /// * `outcome` - The outcome string to validate
-    /// * `market_outcomes` - Vector of valid outcomes for the market
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Outcome is valid for this market
-    /// * `Err(Error)` - Outcome is not valid for this market
-    ///
-    /// # Errors
-    ///
-    /// * `Error::InvalidOutcome` - Outcome does not match any valid market outcomes
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use soroban_sdk::{Env, String, vec};
-    /// use crate::markets::MarketValidator;
-    ///
-    /// let env = Env::default();
-    /// let valid_outcomes = vec![
-    ///     &env,
-    ///     String::from_str(&env, "Yes"),
-    ///     String::from_str(&env, "No"),
-    ///     String::from_str(&env, "Maybe")
-    /// ];
-    ///
-    /// // Valid outcome
-    /// let user_vote = String::from_str(&env, "Yes");
-    /// assert!(MarketValidator::validate_outcome(&env, &user_vote, &valid_outcomes).is_ok());
-    ///
-    /// // Invalid outcome
-    /// let invalid_vote = String::from_str(&env, "Perhaps");
-    /// assert!(MarketValidator::validate_outcome(&env, &invalid_vote, &valid_outcomes).is_err());
-    /// ```
+    /// Validate outcome for a market
     pub fn validate_outcome(
         _env: &Env,
         outcome: &String,
@@ -883,6 +848,9 @@ impl MarketStateManager {
         // No state change for voting
     }
 
+
+    /// Add dispute stake to market
+
     /// Adds a user's dispute stake to challenge the market's oracle result.
     ///
     /// This function allows users to stake tokens to dispute the oracle's
@@ -941,6 +909,7 @@ impl MarketStateManager {
     ///
     /// MarketStateManager::update_market(&env, &market_id, &market);
     /// ```
+
     pub fn add_dispute_stake(
         market: &mut Market,
         user: Address,
@@ -2507,6 +2476,9 @@ impl MarketStateLogic {
         }
     }
 
+
+    /// Check if a function is allowed in the given state
+
     /// Validates that a specific function can be executed in the given market state.
     ///
     /// This function enforces access control based on market state, ensuring
@@ -2554,6 +2526,7 @@ impl MarketStateLogic {
     ///     MarketState::Resolved
     /// ).is_ok());
     /// ```
+
     pub fn check_function_access_for_state(
         function: &str,
         state: MarketState,

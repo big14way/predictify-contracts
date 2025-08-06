@@ -18,6 +18,7 @@ mod storage;
 mod types;
 mod utils;
 mod validation;
+mod validation_tests;
 mod voting;
 
 #[cfg(test)]
@@ -699,6 +700,9 @@ impl PredictifyHybrid {
     }
 
     // ===== MARKET EXTENSION FUNCTIONS =====
+
+
+
 
     /// Fetches oracle result for a market from external oracle contracts.
     ///
@@ -1394,10 +1398,11 @@ impl PredictifyHybrid {
             market_id,
             additional_days,
             reason,
+
         ) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
-        }
+
     }
 
     // ===== STORAGE OPTIMIZATION FUNCTIONS =====
@@ -1726,6 +1731,7 @@ impl PredictifyHybrid {
         };
         
         Ok(storage::StorageUtils::get_storage_recommendations(&market))
+
     }
 }
 
