@@ -1509,8 +1509,7 @@ pub mod testing {
 mod tests {
     use super::*;
 
-    use crate::types::{OracleConfig, OracleProvider};
-    use soroban_sdk::{testutils::Address as _, vec};
+    use soroban_sdk::testutils::Address as _;
 
     #[test]
     fn test_voting_validator_authentication() {

@@ -1645,7 +1645,6 @@ impl Default for ResolutionAnalytics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test::PredictifyTest, PredictifyHybridClient};
     use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
 
     #[test]
