@@ -743,28 +743,25 @@ mod tests {
     #[test]
     fn test_extension_validation() {
         let env = Env::default();
+        let contract_id = env.register(crate::PredictifyHybrid, ());
+        let _admin = Address::generate(&env);
 
-        let admin = Address::generate(&env);
-
-        // Test valid extension days
-        assert!(
+        // Test valid extension days - wrap in contract context
+        let result1 = env.as_contract(&contract_id, || {
             ExtensionValidator::validate_extension_conditions(&env, &symbol_short!("test"), 5)
-                .is_err()
-        ); // Market doesn't exist
+        });
+        assert!(result1.is_err()); // Market doesn't exist
 
         // Test invalid extension days
-        assert_eq!(
+        let result2 = env.as_contract(&contract_id, || {
             ExtensionValidator::validate_extension_conditions(&env, &symbol_short!("test"), 0)
-                .unwrap_err(),
-            Error::InvalidInput
-        );
+        });
+        assert_eq!(result2.unwrap_err(), Error::InvalidInput);
 
-
-        assert_eq!(
+        let result3 = env.as_contract(&contract_id, || {
             ExtensionValidator::validate_extension_conditions(&env, &symbol_short!("test"), 31)
-                .unwrap_err(),
-            Error::InvalidInput
-        );
+        });
+        assert_eq!(result3.unwrap_err(), Error::InvalidInput);
     }
 
     #[test]

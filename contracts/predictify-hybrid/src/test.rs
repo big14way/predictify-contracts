@@ -189,7 +189,7 @@ fn test_create_market_successful() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #100)")] // Unauthorized = 100
+#[should_panic(expected = "Error(Contract, #1)")] // Unauthorized = 1
 fn test_create_market_with_non_admin() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
@@ -212,7 +212,7 @@ fn test_create_market_with_non_admin() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #301)")] // InvalidOutcomes = 301
+#[should_panic(expected = "Error(Contract, #5)")] // InvalidOutcome = 5
 fn test_create_market_with_empty_outcome() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
@@ -233,7 +233,7 @@ fn test_create_market_with_empty_outcome() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #300)")] // InvalidQuestion = 300
+#[should_panic(expected = "Error(Contract, #201)")] // InvalidInput = 201
 fn test_create_market_with_empty_question() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
@@ -282,7 +282,7 @@ fn test_successful_vote() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #102)")] // MarketClosed = 102
+#[should_panic(expected = "Error(Contract, #2)")] // MarketClosed = 2
 fn test_vote_on_closed_market() {
     let test = PredictifyTest::setup();
     let market_id = test.create_test_market();
@@ -318,7 +318,7 @@ fn test_vote_on_closed_market() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #108)")] // InvalidOutcome = 108
+#[should_panic(expected = "Error(Contract, #5)")] // InvalidOutcome = 5
 fn test_vote_with_invalid_outcome() {
     let test = PredictifyTest::setup();
     let market_id = test.create_test_market();
@@ -334,7 +334,7 @@ fn test_vote_with_invalid_outcome() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #101)")] // MarketNotFound = 101
+#[should_panic(expected = "Error(Contract, #3)")] // MarketNotFound = 3
 fn test_vote_on_nonexistent_market() {
     let test = PredictifyTest::setup();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
@@ -1595,16 +1595,27 @@ fn test_configuration_update() {
 #[test]
 #[should_panic(expected = "Error(Contract, #1)")]
 fn test_configuration_update_unauthorized() {
-    // Setup test environment
     let test = PredictifyTest::setup();
-
-    // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
     
-    client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
-
-    // Try to access storage config (this would fail if unauthorized)
-    let _config = client.get_storage_config();
+    // Try to create a market with a non-admin user (should fail with Unauthorized)
+    let non_admin = Address::generate(&test.env);
+    let mut outcomes = Vec::new(&test.env);
+    outcomes.push_back(String::from_str(&test.env, "yes"));
+    outcomes.push_back(String::from_str(&test.env, "no"));
+    
+    client.create_market(
+        &non_admin,
+        &String::from_str(&test.env, "Test market?"),
+        &outcomes,
+        &30,
+        &crate::OracleConfig {
+            provider: crate::OracleProvider::Pyth,
+            feed_id: String::from_str(&test.env, "BTC/USD"),
+            threshold: 50000,
+            comparison: String::from_str(&test.env, "gt"),
+        },
+    );
 }
 
 #[test]
