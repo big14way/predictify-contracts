@@ -35,7 +35,6 @@ struct TokenTest {
 impl TokenTest {
     fn setup() -> Self {
         let env = Env::default();
-        env.mock_all_auths();
         let token_admin = Address::generate(&env);
         let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
         let token_address = token_contract.address();
@@ -309,7 +308,7 @@ fn test_vote_on_closed_market() {
         max_entry_ttl: 10000,
     });
 
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &market_id,
@@ -325,7 +324,7 @@ fn test_vote_with_invalid_outcome() {
     let market_id = test.create_test_market();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &market_id,
@@ -341,7 +340,7 @@ fn test_vote_on_nonexistent_market() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     let nonexistent_market = Symbol::new(&test.env, "nonexistent");
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &nonexistent_market,
@@ -379,7 +378,7 @@ fn test_fee_calculation() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Vote to create some staked amount
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &market_id,
@@ -546,7 +545,7 @@ fn test_voting_data_integrity() {
     let market_id = test.create_test_market();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &market_id,
@@ -683,11 +682,17 @@ fn test_fee_validator_admin_permissions() {
     });
 
     // Valid admin
-    assert!(crate::fees::FeeValidator::validate_admin_permissions(&test.env, &admin).is_ok());
+    let valid_result = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeValidator::validate_admin_permissions(&test.env, &admin)
+    });
+    assert!(valid_result.is_ok());
 
     // Invalid admin
     let invalid_admin = Address::generate(&test.env);
-    assert!(crate::fees::FeeValidator::validate_admin_permissions(&test.env, &invalid_admin).is_err());
+    let invalid_result = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeValidator::validate_admin_permissions(&test.env, &invalid_admin)
+    });
+    assert!(invalid_result.is_err());
 }
 
 #[test]
@@ -825,8 +830,12 @@ fn test_fee_config_manager() {
     };
 
     // Store and retrieve config
-    crate::fees::FeeConfigManager::store_fee_config(&test.env, &config).unwrap();
-    let retrieved_config = crate::fees::FeeConfigManager::get_fee_config(&test.env).unwrap();
+    test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeConfigManager::store_fee_config(&test.env, &config)
+    }).unwrap();
+    let retrieved_config = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeConfigManager::get_fee_config(&test.env)
+    }).unwrap();
 
     assert_eq!(config, retrieved_config);
 }
@@ -835,7 +844,9 @@ fn test_fee_config_manager() {
 fn test_fee_config_manager_reset_to_defaults() {
     let test = PredictifyTest::setup();
     
-    let default_config = crate::fees::FeeConfigManager::reset_to_defaults(&test.env).unwrap();
+    let default_config = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeConfigManager::reset_to_defaults(&test.env)
+    }).unwrap();
     
     assert_eq!(default_config.platform_fee_percentage, crate::fees::PLATFORM_FEE_PERCENTAGE);
     assert_eq!(default_config.creation_fee, crate::fees::MARKET_CREATION_FEE);
@@ -916,7 +927,9 @@ fn test_fee_manager_process_creation_fee() {
     let test = PredictifyTest::setup();
     
     // Process creation fee
-    crate::fees::FeeManager::process_creation_fee(&test.env, &test.admin).unwrap();
+    test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeManager::process_creation_fee(&test.env, &test.admin)
+    }).unwrap();
     
     // Fee processing test - verification would be implementation specific
     assert!(crate::fees::MARKET_CREATION_FEE > 0);
@@ -926,7 +939,9 @@ fn test_fee_manager_process_creation_fee() {
 fn test_fee_manager_get_fee_analytics() {
     let test = PredictifyTest::setup();
     
-    let analytics = crate::fees::FeeManager::get_fee_analytics(&test.env).unwrap();
+    let analytics = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeManager::get_fee_analytics(&test.env)
+    }).unwrap();
     assert_eq!(analytics.total_fees_collected, 0);
     assert_eq!(analytics.markets_with_fees, 0);
 }
@@ -951,7 +966,9 @@ fn test_fee_manager_update_fee_config() {
             .set(&Symbol::new(&test.env, "Admin"), &test.admin);
     });
 
-    let updated_config = crate::fees::FeeManager::update_fee_config(&test.env, test.admin.clone(), new_config.clone()).unwrap();
+    let updated_config = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeManager::update_fee_config(&test.env, test.admin.clone(), new_config.clone())
+    }).unwrap();
     assert_eq!(updated_config, new_config);
 }
 
@@ -959,7 +976,9 @@ fn test_fee_manager_update_fee_config() {
 fn test_fee_manager_get_fee_config() {
     let test = PredictifyTest::setup();
     
-    let config = crate::fees::FeeManager::get_fee_config(&test.env).unwrap();
+    let config = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeManager::get_fee_config(&test.env)
+    }).unwrap();
     assert_eq!(config.platform_fee_percentage, crate::fees::PLATFORM_FEE_PERCENTAGE);
     assert_eq!(config.creation_fee, crate::fees::MARKET_CREATION_FEE);
     assert!(config.fees_enabled);
@@ -970,7 +989,9 @@ fn test_fee_manager_validate_market_fees() {
     let test = PredictifyTest::setup();
     test.create_test_market();
     
-    let result = crate::fees::FeeManager::validate_market_fees(&test.env, &test.market_id).unwrap();
+    let result = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeManager::validate_market_fees(&test.env, &test.market_id)
+    }).unwrap();
     assert!(!result.is_valid);
     assert!(!result.errors.is_empty());
 }
@@ -1114,7 +1135,7 @@ fn test_market_resolution_manager_resolve_market() {
 
     // Add some votes
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..5 {
@@ -1343,7 +1364,7 @@ fn test_resolution_method_determination() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Add votes to create different scenarios
-    test.env.mock_all_auths();
+    
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     
     // Scenario 1: Oracle and community agree
@@ -1434,7 +1455,7 @@ fn test_resolution_with_disputes() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Add votes and resolve market
-    test.env.mock_all_auths();
+    
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..5 {
         let voter = Address::generate(&test.env);
@@ -1471,7 +1492,7 @@ fn test_resolution_with_disputes() {
 
     // Add dispute
     let dispute_stake: i128 = 10_0000000;
-    test.env.mock_all_auths();
+    
     client.dispute_result(&test.user, &test.market_id, &dispute_stake);
 
     // Test resolution state with dispute
@@ -1533,7 +1554,7 @@ fn test_configuration_initialization() {
 
     // Test initialization with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Verify storage configuration exists  
@@ -1548,7 +1569,7 @@ fn test_configuration_environment_specific() {
 
     // Test mainnet configuration
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Mainnet);
 
     // Verify storage configuration exists
@@ -1563,7 +1584,7 @@ fn test_configuration_update() {
 
     // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Test storage configuration
@@ -1579,7 +1600,7 @@ fn test_configuration_update_unauthorized() {
 
     // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Try to access storage config (this would fail if unauthorized)
@@ -1593,7 +1614,7 @@ fn test_configuration_reset() {
 
     // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Test storage configuration access
@@ -1608,7 +1629,7 @@ fn test_configuration_validation() {
 
     // Initialize with valid config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Test storage configuration
@@ -1623,7 +1644,7 @@ fn test_configuration_summary() {
 
     // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Test storage configuration
@@ -1638,7 +1659,7 @@ fn test_fees_enabled_check() {
 
     // Initialize with development config
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
 
     // Test storage configuration
@@ -1653,7 +1674,7 @@ fn test_environment_detection() {
 
     // Test different environments
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    test.env.mock_all_auths();
+    
 
     // Test basic initialization
     client.initialize_with_config(&test.admin, &crate::config::Environment::Development);
@@ -1886,7 +1907,7 @@ fn test_utility_validation() {
     let future_time = test.env.ledger().timestamp() + 3600; // 1 hour in future
     assert!(client.validate_future_timestamp(&future_time));
 
-    let past_time = test.env.ledger().timestamp() - 3600; // 1 hour in past
+    let past_time = test.env.ledger().timestamp().saturating_sub(3600); // 1 hour in past
     assert!(!client.validate_future_timestamp(&past_time));
 }
 
@@ -1988,7 +2009,7 @@ fn test_event_emitter_vote_cast() {
 
     // Create market and vote to trigger event emission
     test.create_test_market();
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &test.market_id,
@@ -2053,7 +2074,7 @@ fn test_event_emitter_market_resolved() {
     test.create_test_market();
     
     // Add votes
-    test.env.mock_all_auths();
+    
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..5 {
         let voter = Address::generate(&test.env);
@@ -2127,7 +2148,7 @@ fn test_event_emitter_dispute_created() {
     client.fetch_oracle_result(&test.market_id, &test.pyth_contract);
 
     // Create dispute
-    test.env.mock_all_auths();
+    
     client.dispute_result(&test.user, &test.market_id, &10_0000000);
 
     // Get market events
@@ -2148,7 +2169,7 @@ fn test_event_emitter_fee_collected() {
     test.create_test_market();
     
     // Add votes
-    test.env.mock_all_auths();
+    
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..5 {
         let voter = Address::generate(&test.env);
@@ -2185,7 +2206,7 @@ fn test_event_emitter_fee_collected() {
     client.resolve_market(&test.market_id);
 
     // Collect fees
-    test.env.mock_all_auths();
+    
     // Fee collection test would be implementation specific
 
     // Get market events
@@ -2204,7 +2225,7 @@ fn test_event_logger_get_recent_events() {
 
     // Create some events
     test.create_test_market();
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &test.market_id,
@@ -2349,7 +2370,7 @@ fn test_event_helpers_event_age() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     let current_time = test.env.ledger().timestamp();
-    let event_time = current_time - 3600; // 1 hour ago
+    let event_time = current_time.saturating_sub(3600); // 1 hour ago
 
     let _timestamp = event_time;
     let _age = 3600;
@@ -2361,8 +2382,8 @@ fn test_event_helpers_recent_event_check() {
     let _client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     let current_time = test.env.ledger().timestamp();
-    let recent_event_time = current_time - 1800; // 30 minutes ago
-    let old_event_time = current_time - 7200; // 2 hours ago
+    let recent_event_time = current_time.saturating_sub(1800); // 30 minutes ago
+    let old_event_time = current_time.saturating_sub(7200); // 2 hours ago
 
     // Test time calculations
     assert!(recent_event_time < current_time);
@@ -2482,7 +2503,7 @@ fn test_event_clear_old_events() {
 
     // Create some events
     test.create_test_market();
-    test.env.mock_all_auths();
+    
     client.vote(
         &test.user,
         &test.market_id,
@@ -2491,7 +2512,7 @@ fn test_event_clear_old_events() {
     );
 
     // Clear old events (older than current time - 1 hour)
-    let cutoff_time = test.env.ledger().timestamp() - 3600;
+    let cutoff_time = test.env.ledger().timestamp().saturating_sub(3600);
     client.clear_old_events(&cutoff_time);
 
     // This should not panic and should complete successfully
@@ -2507,7 +2528,7 @@ fn test_event_integration() {
     test.create_test_market();
     
     // Add votes
-    test.env.mock_all_auths();
+    
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..3 {
         let voter = Address::generate(&test.env);
@@ -2577,7 +2598,7 @@ fn test_event_performance() {
         let _market_events = client.get_market_events(&test.market_id);
         let _recent_events = client.get_recent_events(&5);
         let _event_type = String::from_str(&test.env, "MarketCreated");
-        let _event_time = (test.env.ledger().timestamp() - 1800);
+        let _event_time = test.env.ledger().timestamp().saturating_sub(1800);
     }
 
     // Verify operations completed successfully
@@ -2664,7 +2685,7 @@ fn test_input_validation_future_timestamp() {
     assert!(client.validate_future_timestamp(&future_time));
 
     // Test past timestamp
-    let past_time = test.env.ledger().timestamp() - 3600; // 1 hour in past
+    let past_time = test.env.ledger().timestamp().saturating_sub(3600); // 1 hour in past
     assert!(!client.validate_future_timestamp(&past_time));
 
     // Test current timestamp
