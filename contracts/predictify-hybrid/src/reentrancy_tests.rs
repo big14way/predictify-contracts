@@ -232,7 +232,7 @@ mod tests {
         guard.before_external_call(&function_name, &caller).unwrap();
         
         // Create expected state
-        let expected_state = soroban_sdk::Map::new(&env);
+        let expected_state = ();
         
         // Validate external call success
         let result = guard.validate_external_call_success(&expected_state);
@@ -400,14 +400,14 @@ mod tests {
         assert!(guard2.is_err());
         
         // Even victim can't call functions during active call
-        let guard3 = ReentrancyGuard::new(&env, claim_fn, victim.clone());
+        let guard3 = ReentrancyGuard::new(&env, &claim_fn, &victim);
         assert!(guard3.is_err());
         
         // Clean up
         guard1.after_external_call(true).unwrap();
         
         // Now victim can call functions
-        let guard4 = ReentrancyGuard::new(&env, claim_fn, victim.clone());
+        let guard4 = ReentrancyGuard::new(&env, &claim_fn, &victim);
         assert!(guard4.is_ok());
     }
 } 

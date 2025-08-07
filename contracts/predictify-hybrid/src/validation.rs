@@ -2,7 +2,7 @@
 
 
 use soroban_sdk::{
-    contracttype, vec, Address, Env, Map, String, Symbol, Vec,
+    contracttype, vec, Address, Env, IntoVal, Map, String, Symbol, Vec,
 };
 
 use crate::{
@@ -266,7 +266,15 @@ impl ValidationError {
             ValidationError::InvalidThreshold => Error::InvalidThreshold,
 
             ValidationError::InvalidConfig => Error::InvalidConfig,
-
+            ValidationError::StringTooLong => Error::InvalidInput,
+            ValidationError::StringTooShort => Error::InvalidInput,
+            ValidationError::NumberOutOfRange => Error::InvalidInput,
+            ValidationError::InvalidAddressFormat => Error::Unauthorized,
+            ValidationError::TimestampOutOfBounds => Error::InvalidInput,
+            ValidationError::ArrayTooLarge => Error::InvalidInput,
+            ValidationError::ArrayTooSmall => Error::InvalidInput,
+            ValidationError::InvalidQuestionFormat => Error::InvalidInput,
+            ValidationError::InvalidOutcomeFormat => Error::InvalidOutcome,
         }
     }
 }
@@ -1735,7 +1743,7 @@ impl MarketValidator {
 
         // Validate admin address
 
-        if InputValidator::validate_address(env, admin).is_err() {
+        if InputValidator::validate_address(admin, env).is_err() {
             result.add_error();
         }
 
@@ -2167,7 +2175,7 @@ impl VoteValidator {
     ) -> Result<(), ValidationError> {
 
         // Validate user address
-        if InputValidator::validate_address(env, user).is_err() {
+        if InputValidator::validate_address(user, env).is_err() {
             return Err(ValidationError::InvalidVote);
 
         }
@@ -2329,7 +2337,7 @@ impl DisputeValidator {
     ) -> Result<(), ValidationError> {
 
         // Validate user address
-        if InputValidator::validate_address(env, user).is_err() {
+        if InputValidator::validate_address(user, env).is_err() {
             return Err(ValidationError::InvalidDispute);
 
         }
@@ -2450,14 +2458,14 @@ impl ConfigValidator {
         // Validate admin address
 
       
-        if InputValidator::validate_address(env, admin).is_err() {
+        if InputValidator::validate_address(admin, env).is_err() {
 
             return Err(ValidationError::InvalidConfig);
         }
 
         // Validate token address
 
-        if InputValidator::validate_address(env, token_id).is_err() {
+        if InputValidator::validate_address(token_id, env).is_err() {
 
             return Err(ValidationError::InvalidConfig);
         }
@@ -2650,7 +2658,7 @@ impl ComprehensiveValidator {
 
         // Validate admin
 
-        if InputValidator::validate_address(env, admin).is_err() {
+        if InputValidator::validate_address(admin, env).is_err() {
 
             result.add_error();
         }

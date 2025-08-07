@@ -1398,11 +1398,10 @@ impl PredictifyHybrid {
             market_id,
             additional_days,
             reason,
-
         ) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
-
+        }
     }
 
     // ===== STORAGE OPTIMIZATION FUNCTIONS =====
