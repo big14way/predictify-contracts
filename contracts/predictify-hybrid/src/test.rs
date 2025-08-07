@@ -849,8 +849,10 @@ fn test_fee_config_manager_reset_to_defaults() {
 fn test_fee_analytics_calculation() {
     let test = PredictifyTest::setup();
     
-    // Test with no fee history
-    let analytics = crate::fees::FeeAnalytics::calculate_analytics(&test.env).unwrap();
+    // Test with no fee history - wrap storage access in contract context
+    let analytics = test.env.as_contract(&test.contract_id, || {
+        crate::fees::FeeAnalytics::calculate_analytics(&test.env)
+    }).unwrap();
     assert_eq!(analytics.total_fees_collected, 0);
     assert_eq!(analytics.markets_with_fees, 0);
     assert_eq!(analytics.average_fee_per_market, 0);
