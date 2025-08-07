@@ -74,7 +74,7 @@ impl PredictifyTest {
         let admin = Address::generate(&env);
         let user = Address::generate(&env);
 
-        // Mock all authentication before contract initialization
+        // Mock all authentication for all operations (only call once)
         env.mock_all_auths();
 
         // Initialize contract
@@ -91,7 +91,6 @@ impl PredictifyTest {
 
         // Fund admin and user with tokens
         let stellar_client = StellarAssetClient::new(&env, &token_test.token_id);
-        env.mock_all_auths();
         stellar_client.mint(&admin, &1000_0000000); // Mint 1000 XLM to admin
         stellar_client.mint(&user, &1000_0000000); // Mint 1000 XLM to user
 
@@ -122,8 +121,7 @@ impl PredictifyTest {
         outcomes.push_back(String::from_str(&self.env, "yes"));
         outcomes.push_back(String::from_str(&self.env, "no"));
 
-        // Create market
-        self.env.mock_all_auths();
+        // Create market - auth should be handled by the calling test
         client.create_market(
             &self.admin,
             &String::from_str(&self.env, "Will BTC go above $25,000 by December 31?"),
@@ -261,10 +259,10 @@ fn test_create_market_with_empty_question() {
 #[test]
 fn test_successful_vote() {
     let test = PredictifyTest::setup();
+    
     let market_id = test.create_test_market();
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
-    test.env.mock_all_auths();
     client.vote(
         &test.user,
         &market_id,
