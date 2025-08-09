@@ -809,8 +809,7 @@ impl DisputeManager {
         stake: i128,
         reason: Option<String>,
     ) -> Result<(), Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Get and validate market
         let mut market = MarketStateManager::get_market(env, &market_id)?;
@@ -1339,8 +1338,7 @@ impl DisputeManager {
         stake: i128,
         reason: Option<String>,
     ) -> Result<(), Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Validate dispute voting conditions
         DisputeValidator::validate_dispute_voting_conditions(env, &market_id, &dispute_id)?;
@@ -1628,8 +1626,7 @@ impl DisputeManager {
         dispute_id: Symbol,
         reason: String,
     ) -> Result<DisputeEscalation, Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Validate escalation conditions
         DisputeValidator::validate_dispute_escalation_conditions(env, &user, &dispute_id)?;

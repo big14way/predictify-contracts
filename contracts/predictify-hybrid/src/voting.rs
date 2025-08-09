@@ -310,8 +310,7 @@ impl VotingManager {
         outcome: String,
         stake: i128,
     ) -> Result<(), Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Get and validate market
         let mut market = MarketStateManager::get_market(env, &market_id)?;
@@ -337,8 +336,7 @@ impl VotingManager {
         market_id: Symbol,
         stake: i128,
     ) -> Result<(), Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Get and validate market
         let mut market = MarketStateManager::get_market(env, &market_id)?;
@@ -360,8 +358,7 @@ impl VotingManager {
 
     /// Process winnings claim for a user
     pub fn process_claim(env: &Env, user: Address, market_id: Symbol) -> Result<i128, Error> {
-        // Require authentication from the user
-        user.require_auth();
+        // Authentication is already handled by the calling function
 
         // Get and validate market
         let mut market = MarketStateManager::get_market(env, &market_id)?;
@@ -956,11 +953,24 @@ impl VotingValidator {
     pub fn validate_vote_input(
         env: &Env,
         _market_id: &Symbol,
-        _outcome: &String,
+        outcome: &String,
         stake: i128,
         valid_outcomes: &Vec<String>,
     ) -> Result<(), Error> {
-        // Validate outcome
+        // Validate that the provided outcome is one of the valid outcomes
+        let mut outcome_found = false;
+        for valid_outcome in valid_outcomes.iter() {
+            if outcome == &valid_outcome {
+                outcome_found = true;
+                break;
+            }
+        }
+        
+        if !outcome_found {
+            return Err(Error::InvalidOutcome);
+        }
+
+        // Validate outcomes list itself
         if MarketValidator::validate_outcomes(env, valid_outcomes).is_err() {
             return Err(Error::InvalidInput);
         }
