@@ -2467,7 +2467,7 @@ impl DisputeUtils {
 
     /// Check for expired timeouts
     pub fn check_expired_timeouts(env: &Env) -> Vec<Symbol> {
-        let mut expired_disputes = Vec::new(env);
+        let expired_disputes = Vec::new(env);
         let current_time = env.ledger().timestamp();
 
         // This is a simplified implementation
