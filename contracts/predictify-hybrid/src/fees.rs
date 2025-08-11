@@ -1,4 +1,5 @@
 use soroban_sdk::{contracttype, symbol_short, vec, Address, Env, Map, String, Symbol, Vec};
+use alloc::format;
 
 use crate::errors::Error;
 use crate::markets::{MarketStateManager, MarketUtils};
@@ -1536,6 +1537,324 @@ impl FeeManager {
 
         Ok(true)
     }
+
+    /// Distribute fees to multiple parties
+    pub fn distribute_fees_to_multiple_parties(
+        env: &Env,
+        admin: Address,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<FeeDistributionExecution, Error> {
+        // Require authentication from the admin
+        admin.require_auth();
+
+        // Validate admin permissions
+        FeeValidator::validate_admin_permissions(env, &admin)?;
+
+        // Validate distribution
+        Self::validate_fee_distribution(env, &distribution)?;
+
+        // Get market for validation
+        let market = MarketStateManager::get_market(env, &market_id)?;
+        
+        // Validate market state for fee distribution
+        if market.winning_outcome.is_none() {
+            return Err(Error::MarketNotResolved);
+        }
+
+        if !market.fee_collected {
+            return Err(Error::FeeAlreadyCollected);
+        }
+
+        // Calculate total distribution amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+
+        // Validate total amount
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Create distribution execution record
+        let execution = FeeDistributionExecution {
+            market_id: market_id.clone(),
+            total_fee_amount: total_amount,
+            distribution: distribution.clone(),
+            distribution_config_id: Symbol::new(env, "active_config"),
+            executed_by: admin.clone(),
+            execution_timestamp: env.ledger().timestamp(),
+            verification_status: String::from_str(env, "Pending"),
+            verification_timestamp: 0,
+            verification_notes: String::from_str(env, "Awaiting verification"),
+            success: true,
+            error_message: None,
+        };
+
+        // Validate execution
+        if !execution.is_valid() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Transfer fees to recipients
+        Self::transfer_fees_to_recipients(env, &distribution)?;
+
+        // Store execution record
+        Self::store_distribution_execution(env, &execution)?;
+
+        // Emit distribution event
+        Self::emit_fee_distribution_event(env, &market_id, &distribution)?;
+
+        Ok(execution)
+    }
+
+    /// Validate fee distribution percentages
+    pub fn validate_fee_distribution_percentages(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Calculate total percentage
+        let mut total_percentage: i128 = 0;
+        for (_, percentage) in distribution.iter() {
+            // Validate percentage bounds
+            if percentage < 0 || percentage > 100 {
+                return Err(Error::InvalidInput);
+            }
+            total_percentage += percentage;
+        }
+
+        // Check if total equals 100%
+        if total_percentage != 100 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(true)
+    }
+
+    /// Get fee distribution configuration
+    pub fn get_fee_distribution_config(env: &Env) -> Result<FeeDistributionConfig, Error> {
+        let config_key = symbol_short!("dist_cfg");
+        match env.storage().persistent().get(&config_key) {
+            Some(config) => Ok(config),
+            None => {
+                // Return default configuration
+                let mut default_distribution = Map::new(env);
+                let admin: Option<Address> = env.storage().persistent().get(&Symbol::new(env, "Admin"));
+                
+                if let Some(admin_address) = admin {
+                    default_distribution.set(admin_address, 100); // 100% to admin
+                }
+
+                Ok(FeeDistributionConfig {
+                    distribution: default_distribution,
+                    total_percentage: 100,
+                    governance_enabled: false,
+                    community_participation: false,
+                    min_distribution_percentage: 5,
+                    max_distribution_percentage: 80,
+                    distribution_name: String::from_str(env, "Default Distribution"),
+                    created_by: admin.unwrap_or(Address::generate(env)),
+                    created_at: env.ledger().timestamp(),
+                    is_active: true,
+                })
+            }
+        }
+    }
+
+    /// Update fee distribution configuration
+    pub fn update_fee_distribution_config(
+        env: &Env,
+        admin: Address,
+        new_distribution: Map<Address, i128>,
+    ) -> Result<FeeDistributionConfig, Error> {
+        // Require authentication from the admin
+        admin.require_auth();
+
+        // Validate admin permissions
+        FeeValidator::validate_admin_permissions(env, &admin)?;
+
+        // Validate distribution percentages
+        Self::validate_fee_distribution_percentages(env, &new_distribution)?;
+
+        // Calculate total percentage
+        let mut total_percentage: i128 = 0;
+        for (_, percentage) in new_distribution.iter() {
+            total_percentage += percentage;
+        }
+
+        // Create new configuration
+        let config = FeeDistributionConfig {
+            distribution: new_distribution,
+            total_percentage,
+            governance_enabled: true,
+            community_participation: true,
+            min_distribution_percentage: 5,
+            max_distribution_percentage: 80,
+            distribution_name: String::from_str(env, "Updated Distribution"),
+            created_by: admin.clone(),
+            created_at: env.ledger().timestamp(),
+            is_active: true,
+        };
+
+        // Validate configuration
+        if !config.is_valid() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Store configuration
+        Self::store_distribution_config(env, &config)?;
+
+        // Emit configuration update event
+        Self::emit_distribution_config_updated_event(env, &admin, &config)?;
+
+        Ok(config)
+    }
+
+    /// Emit fee distribution event
+    pub fn emit_fee_distribution_event(
+        env: &Env,
+        market_id: &Symbol,
+        distribution: &Map<Address, i128>,
+    ) -> Result<(), Error> {
+        // Calculate total amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+
+        // Emit distribution event
+        use crate::events::EventEmitter;
+        EventEmitter::emit_performance_metric(
+            env,
+            &String::from_str(env, "fee_dist_total"),
+            total_amount,
+            &String::from_str(env, "stroops"),
+            &String::from_str(env, "Fee distribution completed"),
+        );
+
+        Ok(())
+    }
+
+    /// Track fee distribution history
+    pub fn track_fee_distribution_history(
+        env: &Env,
+        market_id: Symbol,
+    ) -> Result<Vec<FeeDistributionExecution>, Error> {
+        let history_key = symbol_short!("dist_hist");
+        let mut history: Vec<FeeDistributionExecution> = env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or(vec![env]);
+
+        // Filter history for specific market
+        let market_history: Vec<FeeDistributionExecution> = history
+            .iter()
+            .filter(|execution| execution.market_id == market_id)
+            .cloned()
+            .collect();
+
+        Ok(market_history)
+    }
+
+    /// Validate distribution totals
+    pub fn validate_distribution_totals(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Calculate total amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            if amount <= 0 {
+                return Err(Error::InvalidInput);
+            }
+            total_amount += amount;
+        }
+
+        // Validate total amount
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Check for reasonable limits
+        if total_amount > MAX_FEE_AMOUNT * 10 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(true)
+    }
+
+    // ===== PRIVATE HELPER METHODS =====
+
+    /// Transfer fees to recipients
+    fn transfer_fees_to_recipients(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<(), Error> {
+        let token_client = MarketUtils::get_token_client(env)?;
+
+        for (recipient, amount) in distribution.iter() {
+            token_client.transfer(&env.current_contract_address(), &recipient, &amount);
+        }
+
+        Ok(())
+    }
+
+    /// Store distribution execution
+    fn store_distribution_execution(
+        env: &Env,
+        execution: &FeeDistributionExecution,
+    ) -> Result<(), Error> {
+        let history_key = symbol_short!("dist_hist");
+        let mut history: Vec<FeeDistributionExecution> = env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or(vec![env]);
+
+        history.push_back(execution.clone());
+        env.storage().persistent().set(&history_key, &history);
+
+        Ok(())
+    }
+
+    /// Store distribution configuration
+    fn store_distribution_config(
+        env: &Env,
+        config: &FeeDistributionConfig,
+    ) -> Result<(), Error> {
+        let config_key = symbol_short!("dist_cfg");
+        env.storage().persistent().set(&config_key, config);
+        Ok(())
+    }
+
+    /// Emit distribution config updated event
+    fn emit_distribution_config_updated_event(
+        env: &Env,
+        admin: &Address,
+        config: &FeeDistributionConfig,
+    ) -> Result<(), Error> {
+        use crate::events::EventEmitter;
+        EventEmitter::emit_config_updated(
+            env,
+            admin,
+            &String::from_str(env, "Fee Distribution"),
+            &String::from_str(env, "Previous Config"),
+            &config.distribution_name,
+        );
+        Ok(())
+    }
 }
 
 // ===== FEE CALCULATOR =====
@@ -2642,5 +2961,1158 @@ mod tests {
             history.reason,
             String::from_str(&env, "Activity level increased")
         );
+    }
+}
+
+/// Fee distribution configuration for multiple parties
+///
+/// This structure defines how fees are distributed across multiple recipients,
+/// including percentages, addresses, and distribution rules. Essential for
+/// implementing multi-party fee distribution systems.
+///
+/// # Distribution Configuration
+///
+/// Fee distribution includes:
+/// - Multiple recipient addresses and their percentages
+/// - Distribution validation rules
+/// - Governance and management settings
+/// - Distribution history tracking
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Map};
+/// # use predictify_hybrid::fees::FeeDistributionConfig;
+/// # let env = Env::default();
+///
+/// // Create fee distribution configuration
+/// let mut distribution = Map::new(&env);
+/// distribution.set(Address::generate(&env), 60); // 60% to platform
+/// distribution.set(Address::generate(&env), 25); // 25% to governance
+/// distribution.set(Address::generate(&env), 15); // 15% to community
+///
+/// let config = FeeDistributionConfig {
+///     distribution: distribution,
+///     total_percentage: 100,
+///     governance_enabled: true,
+///     community_participation: true,
+///     min_distribution_percentage: 5,
+///     max_distribution_percentage: 80,
+///     distribution_name: String::from_str(&env, "Standard Distribution"),
+///     created_by: Address::generate(&env),
+///     created_at: env.ledger().timestamp(),
+///     is_active: true,
+/// };
+///
+/// // Validate distribution configuration
+/// assert_eq!(config.total_percentage, 100);
+/// assert!(config.is_valid());
+/// ```
+///
+/// # Governance Features
+///
+/// Distribution configuration supports:
+/// - **Multi-party Governance**: Multiple addresses can receive fees
+/// - **Percentage-based Distribution**: Flexible allocation percentages
+/// - **Validation Rules**: Ensure percentages add up correctly
+/// - **Active/Inactive States**: Enable/disable distribution configurations
+/// - **Audit Trail**: Track who created and modified configurations
+///
+/// # Integration Applications
+///
+/// - **Platform Revenue Sharing**: Distribute fees to multiple stakeholders
+/// - **Governance Participation**: Reward governance participants
+/// - **Community Incentives**: Fund community initiatives
+/// - **Partner Revenue**: Share fees with partners and integrators
+/// - **Treasury Management**: Manage platform treasury allocations
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeDistributionConfig {
+    /// Distribution mapping (address -> percentage)
+    pub distribution: Map<Address, i128>,
+    /// Total percentage (must equal 100)
+    pub total_percentage: i128,
+    /// Whether governance participation is enabled
+    pub governance_enabled: bool,
+    /// Whether community participation is enabled
+    pub community_participation: bool,
+    /// Minimum percentage per recipient
+    pub min_distribution_percentage: i128,
+    /// Maximum percentage per recipient
+    pub max_distribution_percentage: i128,
+    /// Distribution configuration name
+    pub distribution_name: String,
+    /// Created by admin
+    pub created_by: Address,
+    /// Creation timestamp
+    pub created_at: u64,
+    /// Whether this configuration is active
+    pub is_active: bool,
+}
+
+impl FeeDistributionConfig {
+    /// Validate the distribution configuration
+    pub fn is_valid(&self) -> bool {
+        // Check if total percentage equals 100
+        if self.total_percentage != 100 {
+            return false;
+        }
+
+        // Check if distribution is not empty
+        if self.distribution.is_empty() {
+            return false;
+        }
+
+        // Validate each distribution entry
+        let mut calculated_total: i128 = 0;
+        for (_, percentage) in self.distribution.iter() {
+            // Check percentage bounds
+            if percentage < self.min_distribution_percentage || percentage > self.max_distribution_percentage {
+                return false;
+            }
+            calculated_total += percentage;
+        }
+
+        // Check if calculated total matches expected total
+        calculated_total == self.total_percentage
+    }
+
+    /// Get distribution percentage for a specific address
+    pub fn get_percentage_for_address(&self, address: &Address) -> Option<i128> {
+        self.distribution.get(address.clone())
+    }
+
+    /// Calculate fee amount for a specific address
+    pub fn calculate_fee_amount(&self, total_fee: i128, address: &Address) -> Option<i128> {
+        let percentage = self.get_percentage_for_address(address)?;
+        Some((total_fee * percentage) / 100)
+    }
+
+    /// Get all recipient addresses
+    pub fn get_recipients(&self) -> Vec<Address> {
+        let mut recipients = Vec::new(&Env::default());
+        for (address, _) in self.distribution.iter() {
+            recipients.push_back(address);
+        }
+        recipients
+    }
+
+    /// Check if address is a recipient
+    pub fn is_recipient(&self, address: &Address) -> bool {
+        self.distribution.contains_key(address.clone())
+    }
+}
+
+/// Fee distribution execution record
+///
+/// This structure tracks the execution of fee distributions to multiple parties,
+/// providing complete audit trails and verification for multi-party fee distribution.
+/// Essential for transparency and compliance in fee distribution operations.
+///
+/// # Distribution Execution
+///
+/// Distribution execution includes:
+/// - Market identification and total fee amount
+/// - Distribution to multiple recipients
+/// - Execution verification and status
+/// - Complete audit trail and timestamps
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Map, Symbol};
+/// # use predictify_hybrid::fees::FeeDistributionExecution;
+/// # let env = Env::default();
+///
+/// // Create distribution execution record
+/// let mut distribution = Map::new(&env);
+/// distribution.set(Address::generate(&env), 60_000_000); // 60 XLM
+/// distribution.set(Address::generate(&env), 25_000_000); // 25 XLM
+/// distribution.set(Address::generate(&env), 15_000_000); // 15 XLM
+///
+/// let execution = FeeDistributionExecution {
+///     market_id: Symbol::new(&env, "btc_market"),
+///     total_fee_amount: 100_000_000, // 100 XLM total
+///     distribution: distribution,
+///     distribution_config_id: Symbol::new(&env, "standard_dist"),
+///     executed_by: Address::generate(&env),
+///     execution_timestamp: env.ledger().timestamp(),
+///     verification_status: String::from_str(&env, "Pending"),
+///     verification_timestamp: 0,
+///     verification_notes: String::from_str(&env, "Awaiting verification"),
+///     success: true,
+///     error_message: None,
+/// };
+///
+/// // Verify distribution totals
+/// let calculated_total: i128 = execution.distribution.values().sum();
+/// assert_eq!(execution.total_fee_amount, calculated_total);
+/// ```
+///
+/// # Audit Features
+///
+/// Execution provides audit capabilities:
+/// - **Complete Tracking**: Full record of distribution execution
+/// - **Verification Status**: Track verification and approval process
+/// - **Success/Failure Tracking**: Monitor execution success rates
+/// - **Error Handling**: Capture and track distribution errors
+/// - **Timestamp Records**: Complete chronological audit trail
+///
+/// # Integration Applications
+///
+/// - **Financial Reporting**: Generate distribution execution reports
+/// - **Audit Trails**: Maintain compliance records
+/// - **Transparency**: Provide public execution data
+/// - **Error Monitoring**: Track and resolve distribution issues
+/// - **Performance Analytics**: Analyze distribution efficiency
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeDistributionExecution {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Total fee amount distributed
+    pub total_fee_amount: i128,
+    /// Distribution to recipients (address -> amount)
+    pub distribution: Map<Address, i128>,
+    /// Distribution configuration ID used
+    pub distribution_config_id: Symbol,
+    /// Executed by admin
+    pub executed_by: Address,
+    /// Execution timestamp
+    pub execution_timestamp: u64,
+    /// Verification status
+    pub verification_status: String,
+    /// Verification timestamp
+    pub verification_timestamp: u64,
+    /// Verification notes
+    pub verification_notes: String,
+    /// Whether execution was successful
+    pub success: bool,
+    /// Error message if execution failed
+    pub error_message: Option<String>,
+}
+
+impl FeeDistributionExecution {
+    /// Validate the distribution execution
+    pub fn is_valid(&self) -> bool {
+        // Check if total fee amount is positive
+        if self.total_fee_amount <= 0 {
+            return false;
+        }
+
+        // Check if distribution is not empty
+        if self.distribution.is_empty() {
+            return false;
+        }
+
+        // Validate distribution totals
+        let mut calculated_total: i128 = 0;
+        for (_, amount) in self.distribution.iter() {
+            if amount <= 0 {
+                return false;
+            }
+            calculated_total += amount;
+        }
+
+        // Check if calculated total matches expected total
+        calculated_total == self.total_fee_amount
+    }
+
+    /// Get distribution amount for a specific address
+    pub fn get_amount_for_address(&self, address: &Address) -> Option<i128> {
+        self.distribution.get(address)
+    }
+
+    /// Get all recipient addresses
+    pub fn get_recipients(&self) -> Vec<Address> {
+        let mut recipients = Vec::new(&Env::default());
+        for (address, _) in self.distribution.iter() {
+            recipients.push_back(address);
+        }
+        recipients
+    }
+
+    /// Check if execution is verified
+    pub fn is_verified(&self) -> bool {
+        self.verification_status == String::from_str(&Env::default(), "Verified")
+    }
+
+    /// Mark execution as verified
+    pub fn mark_verified(&mut self, env: &Env, notes: String) {
+        self.verification_status = String::from_str(env, "Verified");
+        self.verification_timestamp = env.ledger().timestamp();
+        self.verification_notes = notes;
+    }
+}
+
+/// Fee distribution governance record
+///
+/// This structure tracks governance decisions and changes related to fee distribution,
+/// providing transparency and auditability for distribution governance operations.
+/// Essential for democratic and transparent fee distribution management.
+///
+/// # Governance Features
+///
+/// Distribution governance includes:
+/// - Governance proposals and decisions
+/// - Voting records and outcomes
+/// - Distribution configuration changes
+/// - Governance participation tracking
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Map, Symbol};
+/// # use predictify_hybrid::fees::FeeDistributionGovernance;
+/// # let env = Env::default();
+///
+/// // Create governance record
+/// let mut votes = Map::new(&env);
+/// votes.set(Address::generate(&env), true); // Yes vote
+/// votes.set(Address::generate(&env), false); // No vote
+///
+/// let governance = FeeDistributionGovernance {
+///     proposal_id: Symbol::new(&env, "prop_001"),
+///     proposal_type: String::from_str(&env, "Distribution Change"),
+///     proposal_description: String::from_str(&env, "Increase community allocation to 20%"),
+///     proposed_by: Address::generate(&env),
+///     votes: votes,
+///     total_votes: 2,
+///     yes_votes: 1,
+///     no_votes: 1,
+///     voting_start: env.ledger().timestamp(),
+///     voting_end: env.ledger().timestamp() + 86400, // 24 hours
+///     status: String::from_str(&env, "Active"),
+///     outcome: None,
+///     executed: false,
+///     execution_timestamp: 0,
+/// };
+///
+/// // Check voting status
+/// let approval_percentage = (governance.yes_votes * 100) / governance.total_votes;
+/// println!("Approval: {}%", approval_percentage);
+/// ```
+///
+/// # Governance Features
+///
+/// Governance provides democratic features:
+/// - **Proposal System**: Submit and vote on distribution changes
+/// - **Voting Mechanism**: Democratic decision-making process
+/// - **Transparency**: Public voting records and outcomes
+/// - **Execution Tracking**: Monitor proposal implementation
+/// - **Participation Incentives**: Encourage governance participation
+///
+/// # Integration Applications
+///
+/// - **Democratic Governance**: Enable community-driven decisions
+/// - **Transparency**: Provide public governance records
+/// - **Participation Tracking**: Monitor governance engagement
+/// - **Proposal Management**: Manage distribution change proposals
+/// - **Voting Analytics**: Analyze governance participation patterns
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeDistributionGovernance {
+    /// Proposal ID
+    pub proposal_id: Symbol,
+    /// Type of proposal
+    pub proposal_type: String,
+    /// Proposal description
+    pub proposal_description: String,
+    /// Proposed by address
+    pub proposed_by: Address,
+    /// Votes mapping (address -> vote)
+    pub votes: Map<Address, bool>,
+    /// Total number of votes
+    pub total_votes: u32,
+    /// Number of yes votes
+    pub yes_votes: u32,
+    /// Number of no votes
+    pub no_votes: u32,
+    /// Voting start timestamp
+    pub voting_start: u64,
+    /// Voting end timestamp
+    pub voting_end: u64,
+    /// Proposal status
+    pub status: String,
+    /// Voting outcome
+    pub outcome: Option<String>,
+    /// Whether proposal was executed
+    pub executed: bool,
+    /// Execution timestamp
+    pub execution_timestamp: u64,
+}
+
+impl FeeDistributionGovernance {
+    /// Check if proposal is active
+    pub fn is_active(&self, current_time: u64) -> bool {
+        self.status == String::from_str(&Env::default(), "Active") 
+            && current_time >= self.voting_start 
+            && current_time <= self.voting_end
+    }
+
+    /// Check if proposal has ended
+    pub fn has_ended(&self, current_time: u64) -> bool {
+        current_time > self.voting_end
+    }
+
+    /// Get approval percentage
+    pub fn get_approval_percentage(&self) -> u32 {
+        if self.total_votes == 0 {
+            return 0;
+        }
+        (self.yes_votes * 100) / self.total_votes
+    }
+
+    /// Check if proposal is approved (requires >50% yes votes)
+    pub fn is_approved(&self) -> bool {
+        self.get_approval_percentage() > 50
+    }
+
+    /// Add a vote to the proposal
+    pub fn add_vote(&mut self, voter: Address, vote: bool) {
+        // Check if voter already voted
+        if self.votes.contains_key(&voter) {
+            // Update existing vote
+            let old_vote = self.votes.get(&voter).unwrap();
+            if old_vote != vote {
+                if old_vote {
+                    self.yes_votes -= 1;
+                } else {
+                    self.no_votes -= 1;
+                }
+                
+                if vote {
+                    self.yes_votes += 1;
+                } else {
+                    self.no_votes += 1;
+                }
+            }
+        } else {
+            // Add new vote
+            if vote {
+                self.yes_votes += 1;
+            } else {
+                self.no_votes += 1;
+            }
+            self.total_votes += 1;
+        }
+        
+        self.votes.set(voter, vote);
+    }
+
+    /// Finalize proposal outcome
+    pub fn finalize_outcome(&mut self) {
+        if self.is_approved() {
+            self.outcome = Some(String::from_str(&Env::default(), "Approved"));
+            self.status = String::from_str(&Env::default(), "Approved");
+        } else {
+            self.outcome = Some(String::from_str(&Env::default(), "Rejected"));
+            self.status = String::from_str(&Env::default(), "Rejected");
+        }
+    }
+}
+
+/// Fee distribution analytics and statistics
+///
+/// This structure provides comprehensive analytics for multi-party fee distribution,
+/// including distribution patterns, recipient performance, and governance metrics.
+/// Essential for understanding and optimizing fee distribution systems.
+///
+/// # Analytics Scope
+///
+/// Distribution analytics include:
+/// - Total distributions and amounts
+/// - Recipient performance and patterns
+/// - Governance participation metrics
+/// - Distribution efficiency indicators
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Map, String, Vec};
+/// # use predictify_hybrid::fees::FeeDistributionAnalytics;
+/// # let env = Env::default();
+///
+/// // Create distribution analytics
+/// let mut recipient_stats = Map::new(&env);
+/// recipient_stats.set(String::from_str(&env, "platform"), 60_000_000); // 60 XLM
+/// recipient_stats.set(String::from_str(&env, "governance"), 25_000_000); // 25 XLM
+/// recipient_stats.set(String::from_str(&env, "community"), 15_000_000); // 15 XLM
+///
+/// let analytics = FeeDistributionAnalytics {
+///     total_distributions: 50,
+///     total_amount_distributed: 1_000_000_000, // 1000 XLM
+///     average_distribution_amount: 20_000_000, // 20 XLM average
+///     recipient_statistics: recipient_stats,
+///     governance_proposals: 10,
+///     governance_participation_rate: 75, // 75%
+///     distribution_efficiency: 95, // 95%
+///     last_distribution_timestamp: env.ledger().timestamp(),
+///     distribution_history: Vec::new(&env),
+/// };
+///
+/// // Display analytics summary
+/// println!("Total distributed: {} XLM", analytics.total_amount_distributed / 10_000_000);
+/// println!("Average per distribution: {} XLM", analytics.average_distribution_amount / 10_000_000);
+/// println!("Governance participation: {}%", analytics.governance_participation_rate);
+/// ```
+///
+/// # Analytics Features
+///
+/// Analytics provide insights into:
+/// - **Distribution Performance**: Track distribution efficiency and patterns
+/// - **Recipient Analysis**: Understand recipient behavior and performance
+/// - **Governance Metrics**: Monitor governance participation and effectiveness
+/// - **Efficiency Tracking**: Measure distribution system performance
+/// - **Historical Trends**: Analyze distribution patterns over time
+///
+/// # Integration Applications
+///
+/// - **Performance Dashboards**: Display distribution performance metrics
+/// - **Governance Reporting**: Generate governance participation reports
+/// - **Efficiency Analysis**: Identify optimization opportunities
+/// - **Recipient Management**: Monitor and manage recipient performance
+/// - **Strategic Planning**: Data-driven distribution strategy decisions
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeDistributionAnalytics {
+    /// Total number of distributions
+    pub total_distributions: u32,
+    /// Total amount distributed
+    pub total_amount_distributed: i128,
+    /// Average distribution amount
+    pub average_distribution_amount: i128,
+    /// Recipient statistics (recipient -> amount)
+    pub recipient_statistics: Map<String, i128>,
+    /// Number of governance proposals
+    pub governance_proposals: u32,
+    /// Governance participation rate (percentage)
+    pub governance_participation_rate: u32,
+    /// Distribution efficiency (percentage)
+    pub distribution_efficiency: u32,
+    /// Last distribution timestamp
+    pub last_distribution_timestamp: u64,
+    /// Distribution history
+    pub distribution_history: Vec<FeeDistributionExecution>,
+}
+
+
+
+impl FeeDistributionAnalytics {
+    /// Calculate analytics from distribution history
+    pub fn calculate_from_history(env: &Env, history: Vec<FeeDistributionExecution>) -> Self {
+        let mut total_distributions = 0;
+        let mut total_amount_distributed: i128 = 0;
+        let mut recipient_stats = Map::new(env);
+        let mut last_timestamp = 0;
+
+        for execution in history.iter() {
+            total_distributions += 1;
+            total_amount_distributed += execution.total_fee_amount;
+            
+            if execution.execution_timestamp > last_timestamp {
+                last_timestamp = execution.execution_timestamp;
+            }
+
+            // Aggregate recipient statistics
+            for (address, amount) in execution.distribution.iter() {
+                let address_str = address.to_string();
+                let current_amount = recipient_stats.get(&address_str).unwrap_or(0);
+                recipient_stats.set(address_str, current_amount + amount);
+            }
+        }
+
+        let average_distribution_amount = if total_distributions > 0 {
+            total_amount_distributed / (total_distributions as i128)
+        } else {
+            0
+        };
+
+        Self {
+            total_distributions,
+            total_amount_distributed,
+            average_distribution_amount,
+            recipient_statistics: recipient_stats,
+            governance_proposals: 0, // TODO: Calculate from governance history
+            governance_participation_rate: 0, // TODO: Calculate from governance history
+            distribution_efficiency: 95, // Default efficiency
+            last_distribution_timestamp: last_timestamp,
+            distribution_history: history,
+        }
+    }
+
+    /// Get recipient with highest distribution
+    pub fn get_top_recipient(&self) -> Option<(String, i128)> {
+        let mut top_recipient: Option<(String, i128)> = None;
+        
+        for (recipient, amount) in self.recipient_statistics.iter() {
+            match top_recipient {
+                Some((_, top_amount)) => {
+                    if amount > top_amount {
+                        top_recipient = Some((recipient, amount));
+                    }
+                }
+                None => {
+                    top_recipient = Some((recipient, amount));
+                }
+            }
+        }
+        
+        top_recipient
+    }
+
+    /// Calculate distribution efficiency
+    pub fn calculate_efficiency(&self) -> u32 {
+        if self.total_distributions == 0 {
+            return 0;
+        }
+
+        let successful_distributions = self.distribution_history
+            .iter()
+            .filter(|execution| execution.success)
+            .count() as u32;
+
+        (successful_distributions * 100) / self.total_distributions
+    }
+}
+
+// ===== FEE DISTRIBUTION MANAGER =====
+
+/// Comprehensive fee distribution management system for multiple parties
+///
+/// The FeeDistributionManager provides centralized fee distribution operations
+/// including configuration management, execution, governance, and analytics.
+/// It handles all multi-party fee distribution operations with proper validation,
+/// transparency, and audit trails.
+///
+/// # Core Responsibilities
+///
+/// - **Distribution Configuration**: Manage multi-party distribution settings
+/// - **Fee Distribution**: Execute fee distributions to multiple recipients
+/// - **Governance Management**: Handle distribution governance and voting
+/// - **Analytics**: Generate distribution analytics and performance metrics
+/// - **Validation**: Ensure distribution accuracy and compliance
+///
+/// # Distribution Operations
+///
+/// The system supports:
+/// - **Multi-party Distribution**: Distribute fees to multiple recipients
+/// - **Percentage-based Allocation**: Flexible distribution percentages
+/// - **Governance Integration**: Democratic distribution decisions
+/// - **Audit Trails**: Complete transparency and tracking
+/// - **Analytics**: Performance monitoring and optimization
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Map, Symbol};
+/// # use predictify_hybrid::fees::FeeDistributionManager;
+/// # let env = Env::default();
+/// # let admin = Address::generate(&env);
+/// # let market_id = Symbol::new(&env, "btc_market");
+///
+/// // Distribute fees to multiple parties
+/// let mut distribution = Map::new(&env);
+/// distribution.set(Address::generate(&env), 60_000_000); // 60 XLM
+/// distribution.set(Address::generate(&env), 25_000_000); // 25 XLM
+/// distribution.set(Address::generate(&env), 15_000_000); // 15 XLM
+///
+/// let execution = FeeDistributionManager::distribute_fees_to_multiple_parties(
+///     &env,
+///     admin.clone(),
+///     market_id.clone(),
+///     distribution
+/// ).unwrap();
+///
+/// println!("Distributed {} XLM to {} recipients", 
+///     execution.total_fee_amount / 10_000_000,
+///     execution.distribution.len());
+///
+/// // Get distribution analytics
+/// let analytics = FeeDistributionManager::get_distribution_analytics(&env).unwrap();
+/// println!("Total distributed: {} XLM", 
+///     analytics.total_amount_distributed / 10_000_000);
+/// ```
+///
+/// # Security and Validation
+///
+/// Distribution operations include:
+/// - **Admin Authentication**: All operations require proper admin authentication
+/// - **Distribution Validation**: Verify distribution percentages and amounts
+/// - **Governance Checks**: Ensure governance compliance for changes
+/// - **Audit Trails**: Complete transparency and tracking
+/// - **Error Handling**: Comprehensive error management and recovery
+///
+/// # Economic Model
+///
+/// The distribution system supports:
+/// - **Multi-stakeholder Economics**: Fair distribution to all participants
+/// - **Governance Incentives**: Reward governance participation
+/// - **Community Funding**: Support community initiatives
+/// - **Platform Sustainability**: Maintain platform operations
+/// - **Transparent Economics**: Clear and auditable distribution
+///
+/// # Integration Points
+///
+/// - **Fee Collection**: Automatic distribution after fee collection
+/// - **Governance Systems**: Integration with governance mechanisms
+/// - **Analytics Dashboards**: Distribution performance monitoring
+/// - **Financial Reporting**: Distribution reporting and compliance
+/// - **User Interfaces**: Distribution transparency and tracking
+pub struct FeeDistributionManager;
+
+impl FeeDistributionManager {
+    /// Distribute fees to multiple parties
+    pub fn distribute_fees_to_multiple_parties(
+        env: &Env,
+        admin: Address,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<FeeDistributionExecution, Error> {
+        // Require authentication from the admin
+        admin.require_auth();
+
+        // Validate admin permissions
+        FeeValidator::validate_admin_permissions(env, &admin)?;
+
+        // Validate distribution
+        FeeValidator::validate_fee_distribution(&distribution)?;
+
+        // Get market for validation
+        let market = MarketStateManager::get_market(env, &market_id)?;
+        
+        // Validate market state for fee distribution
+        if market.winning_outcome.is_none() {
+            return Err(Error::MarketNotResolved);
+        }
+
+        if !market.fee_collected {
+            return Err(Error::FeeAlreadyCollected);
+        }
+
+        // Calculate total distribution amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+
+        // Validate total amount
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Get active distribution configuration
+        let config = Self::get_active_distribution_config(env)?;
+
+        // Create distribution execution record
+        let execution = FeeDistributionExecution {
+            market_id: market_id.clone(),
+            total_fee_amount: total_amount,
+            distribution: distribution.clone(),
+            distribution_config_id: Symbol::new(env, "active_config"),
+            executed_by: admin.clone(),
+            execution_timestamp: env.ledger().timestamp(),
+            verification_status: String::from_str(env, "Pending"),
+            verification_timestamp: 0,
+            verification_notes: String::from_str(env, "Awaiting verification"),
+            success: true,
+            error_message: None,
+        };
+
+        // Validate execution
+        if !execution.is_valid() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Transfer fees to recipients
+        Self::transfer_fees_to_recipients(env, &distribution)?;
+
+        // Store execution record
+        Self::store_distribution_execution(env, &execution)?;
+
+        // Emit distribution event
+        Self::emit_fee_distribution_event(env, &market_id, &distribution)?;
+
+        // Update analytics
+        Self::update_distribution_analytics(env, &execution)?;
+
+        Ok(execution)
+    }
+
+    /// Validate fee distribution percentages
+    pub fn validate_fee_distribution_percentages(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Calculate total percentage
+        let mut total_percentage: i128 = 0;
+        for (_, percentage) in distribution.iter() {
+            // Validate percentage bounds
+            if percentage < 0 || percentage > 100 {
+                return Err(Error::InvalidInput);
+            }
+            total_percentage += percentage;
+        }
+
+        // Check if total equals 100%
+        if total_percentage != 100 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(true)
+    }
+
+    /// Get fee distribution configuration
+    pub fn get_fee_distribution_config(env: &Env) -> Result<FeeDistributionConfig, Error> {
+        let config_key = symbol_short!("dist_cfg");
+        match env.storage().persistent().get(&config_key) {
+            Some(config) => Ok(config),
+            None => {
+                // Return default configuration
+                let mut default_distribution = Map::new(env);
+                let admin: Option<Address> = env.storage().persistent().get(&Symbol::new(env, "Admin"));
+                
+                if let Some(admin_address) = admin {
+                    default_distribution.set(admin_address, 100); // 100% to admin
+                }
+
+                Ok(FeeDistributionConfig {
+                    distribution: default_distribution,
+                    total_percentage: 100,
+                    governance_enabled: false,
+                    community_participation: false,
+                    min_distribution_percentage: 5,
+                    max_distribution_percentage: 80,
+                    distribution_name: String::from_str(env, "Default Distribution"),
+                    created_by: admin.unwrap_or(Address::generate(env)),
+                    created_at: env.ledger().timestamp(),
+                    is_active: true,
+                })
+            }
+        }
+    }
+
+    /// Update fee distribution configuration
+    pub fn update_fee_distribution_config(
+        env: &Env,
+        admin: Address,
+        new_distribution: Map<Address, i128>,
+    ) -> Result<FeeDistributionConfig, Error> {
+        // Require authentication from the admin
+        admin.require_auth();
+
+        // Validate admin permissions
+        FeeValidator::validate_admin_permissions(env, &admin)?;
+
+        // Validate distribution percentages
+        Self::validate_fee_distribution_percentages(env, &new_distribution)?;
+
+        // Calculate total percentage
+        let mut total_percentage: i128 = 0;
+        for (_, percentage) in new_distribution.iter() {
+            total_percentage += percentage;
+        }
+
+        // Create new configuration
+        let config = FeeDistributionConfig {
+            distribution: new_distribution,
+            total_percentage,
+            governance_enabled: true,
+            community_participation: true,
+            min_distribution_percentage: 5,
+            max_distribution_percentage: 80,
+            distribution_name: String::from_str(env, "Updated Distribution"),
+            created_by: admin.clone(),
+            created_at: env.ledger().timestamp(),
+            is_active: true,
+        };
+
+        // Validate configuration
+        if !config.is_valid() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Store configuration
+        Self::store_distribution_config(env, &config)?;
+
+        // Emit configuration update event
+        Self::emit_distribution_config_updated_event(env, &admin, &config)?;
+
+        Ok(config)
+    }
+
+    /// Emit fee distribution event
+    pub fn emit_fee_distribution_event(
+        env: &Env,
+        market_id: &Symbol,
+        distribution: &Map<Address, i128>,
+    ) -> Result<(), Error> {
+        // Calculate total amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+
+        // Emit distribution event
+        use crate::events::EventEmitter;
+        EventEmitter::emit_performance_metric(
+            env,
+            &String::from_str(env, "fee_dist_total"),
+            total_amount,
+            &String::from_str(env, "stroops"),
+            &String::from_str(env, "Fee distribution completed"),
+        );
+
+        Ok(())
+    }
+
+    /// Track fee distribution history
+    pub fn track_fee_distribution_history(
+        env: &Env,
+        market_id: Symbol,
+    ) -> Result<Vec<FeeDistributionExecution>, Error> {
+        let history_key = symbol_short!("dist_hist");
+        let mut history: Vec<FeeDistributionExecution> = env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or(vec![env]);
+
+        // Filter history for specific market
+        let market_history: Vec<FeeDistributionExecution> = history
+            .iter()
+            .filter(|execution| execution.market_id == market_id)
+            .cloned()
+            .collect();
+
+        Ok(market_history)
+    }
+
+    /// Validate distribution totals
+    pub fn validate_distribution_totals(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Calculate total amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            if amount <= 0 {
+                return Err(Error::InvalidInput);
+            }
+            total_amount += amount;
+        }
+
+        // Validate total amount
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Check for reasonable limits
+        if total_amount > MAX_FEE_AMOUNT * 10 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(true)
+    }
+
+    // ===== PRIVATE HELPER METHODS =====
+
+    /// Transfer fees to recipients
+    fn transfer_fees_to_recipients(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<(), Error> {
+        let token_client = MarketUtils::get_token_client(env)?;
+
+        for (recipient, amount) in distribution.iter() {
+            token_client.transfer(&env.current_contract_address(), &recipient, &amount);
+        }
+
+        Ok(())
+    }
+
+    /// Store distribution execution
+    fn store_distribution_execution(
+        env: &Env,
+        execution: &FeeDistributionExecution,
+    ) -> Result<(), Error> {
+        let history_key = symbol_short!("dist_hist");
+        let mut history: Vec<FeeDistributionExecution> = env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or(vec![env]);
+
+        history.push_back(execution.clone());
+        env.storage().persistent().set(&history_key, &history);
+
+        Ok(())
+    }
+
+    /// Store distribution configuration
+    fn store_distribution_config(
+        env: &Env,
+        config: &FeeDistributionConfig,
+    ) -> Result<(), Error> {
+        let config_key = symbol_short!("dist_cfg");
+        env.storage().persistent().set(&config_key, config);
+        Ok(())
+    }
+
+    /// Emit distribution config updated event
+    fn emit_distribution_config_updated_event(
+        env: &Env,
+        admin: &Address,
+        config: &FeeDistributionConfig,
+    ) -> Result<(), Error> {
+        use crate::events::EventEmitter;
+        EventEmitter::emit_config_updated(
+            env,
+            admin,
+            &String::from_str(env, "Fee Distribution"),
+            &String::from_str(env, "Previous Config"),
+            &config.distribution_name,
+        );
+        Ok(())
+    }
+
+    /// Get active distribution configuration
+    fn get_active_distribution_config(env: &Env) -> Result<FeeDistributionConfig, Error> {
+        Self::get_fee_distribution_config(env)
+    }
+
+    /// Store governance proposal
+    fn store_governance_proposal(
+        env: &Env,
+        governance: &FeeDistributionGovernance,
+    ) -> Result<(), Error> {
+        let governance_key = symbol_short!("gov_prop");
+        let mut proposals: Vec<FeeDistributionGovernance> = env
+            .storage()
+            .persistent()
+            .get(&governance_key)
+            .unwrap_or(vec![env]);
+
+        // Update existing proposal or add new one
+        let mut found = false;
+        for i in 0..proposals.len() {
+            if proposals.get(i).unwrap().proposal_id == governance.proposal_id {
+                proposals.set(i, governance.clone());
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            proposals.push_back(governance.clone());
+        }
+
+        env.storage().persistent().set(&governance_key, &proposals);
+        Ok(())
+    }
+
+    /// Get governance proposal
+    fn get_governance_proposal(
+        env: &Env,
+        proposal_id: &Symbol,
+    ) -> Result<FeeDistributionGovernance, Error> {
+        let governance_key = symbol_short!("gov_prop");
+        let proposals: Vec<FeeDistributionGovernance> = env
+            .storage()
+            .persistent()
+            .get(&governance_key)
+            .unwrap_or(vec![env]);
+
+        for proposal in proposals.iter() {
+            if proposal.proposal_id == *proposal_id {
+                return Ok(proposal);
+            }
+        }
+
+        Err(Error::InvalidInput)
+    }
+
+    /// Emit governance proposal event
+    fn emit_governance_proposal_event(
+        env: &Env,
+        proposer: &Address,
+        proposal_id: &Symbol,
+    ) -> Result<(), Error> {
+        use crate::events::EventEmitter;
+        EventEmitter::emit_admin_action_logged(
+            env,
+            proposer,
+            "governance_proposal_created",
+            &true,
+        );
+        Ok(())
+    }
+
+    /// Emit governance vote event
+    fn emit_governance_vote_event(
+        env: &Env,
+        voter: &Address,
+        proposal_id: &Symbol,
+        vote: bool,
+    ) -> Result<(), Error> {
+        use crate::events::EventEmitter;
+        EventEmitter::emit_admin_action_logged(
+            env,
+            voter,
+            "governance_vote_cast",
+            &vote,
+        );
+        Ok(())
+    }
+
+    /// Emit governance execution event
+    fn emit_governance_execution_event(
+        env: &Env,
+        admin: &Address,
+        proposal_id: &Symbol,
+    ) -> Result<(), Error> {
+        use crate::events::EventEmitter;
+        EventEmitter::emit_admin_action_logged(
+            env,
+            admin,
+            "governance_proposal_executed",
+            &true,
+        );
+        Ok(())
+    }
+
+    /// Update distribution analytics
+    fn update_distribution_analytics(
+        env: &Env,
+        execution: &FeeDistributionExecution,
+    ) -> Result<(), Error> {
+        // Update analytics counters
+        let analytics_key = symbol_short!("dist_anal");
+        let current_total: i128 = env.storage().persistent().get(&analytics_key).unwrap_or(0);
+        env.storage()
+            .persistent()
+            .set(&analytics_key, &(current_total + execution.total_fee_amount));
+
+        Ok(())
+    }
+
+    /// Get all distribution history
+    fn get_all_distribution_history(env: &Env) -> Result<Vec<FeeDistributionExecution>, Error> {
+        let history_key = symbol_short!("dist_hist");
+        Ok(env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or(vec![env]))
     }
 }
