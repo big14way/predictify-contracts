@@ -505,7 +505,7 @@ impl StorageOptimizer {
     fn get_all_market_ids(env: &Env) -> Vec<Symbol> {
         // This is a simplified approach - in a real implementation,
         // you'd maintain a registry of all market IDs
-        let mut market_ids = Vec::new(env);
+        let market_ids = Vec::new(env);
         // For now, return empty vector - this would be populated from a registry
         market_ids
     }

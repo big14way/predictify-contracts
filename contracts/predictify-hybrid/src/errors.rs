@@ -1,7 +1,9 @@
 
+
 use soroban_sdk::{contracterror, Env, String, Vec};
 
 /// Essential error enum for the Predictify Hybrid contract
+
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
