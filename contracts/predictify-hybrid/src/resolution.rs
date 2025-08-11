@@ -1258,7 +1258,7 @@ impl OracleResolutionValidator {
         // Check if the market ended (we can only fetch oracle result after market ends)
         let current_time = env.ledger().timestamp();
         if current_time < market.end_time {
-            return Err(Error::MarketClosed);
+            return Err(Error::MarketNotEnded);
         }
 
         Ok(())
@@ -1307,7 +1307,7 @@ impl MarketResolutionValidator {
         // Check if market has ended
         let current_time = env.ledger().timestamp();
         if current_time < market.end_time {
-            return Err(Error::MarketClosed);
+            return Err(Error::MarketNotEnded);
         }
 
         Ok(())

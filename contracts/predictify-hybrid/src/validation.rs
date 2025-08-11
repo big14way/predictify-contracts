@@ -266,9 +266,9 @@ impl ValidationError {
             ValidationError::InvalidThreshold => Error::InvalidThreshold,
 
             ValidationError::InvalidConfig => Error::InvalidConfig,
-            ValidationError::StringTooLong => Error::InvalidInput,
+            ValidationError::StringTooLong => Error::InvalidQuestion,
             ValidationError::StringTooShort => Error::InvalidInput,
-            ValidationError::NumberOutOfRange => Error::InvalidInput,
+            ValidationError::NumberOutOfRange => Error::InvalidThreshold,
             ValidationError::InvalidAddressFormat => Error::Unauthorized,
             ValidationError::TimestampOutOfBounds => Error::InvalidInput,
             ValidationError::ArrayTooLarge => Error::InvalidInput,

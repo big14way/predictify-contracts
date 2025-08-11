@@ -571,7 +571,7 @@ impl MarketValidator {
         let current_time = _env.ledger().timestamp();
 
         if current_time < market.end_time {
-            return Err(Error::MarketClosed);
+            return Err(Error::MarketNotEnded);
         }
 
         if market.oracle_result.is_none() {

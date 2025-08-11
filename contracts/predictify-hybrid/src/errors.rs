@@ -24,6 +24,7 @@ pub enum Error {
     AlreadyVoted = 9,
     AlreadyDisputed = 10,
     OracleUnavailable = 11,
+    MarketNotEnded = 12,
     
     // Reentrancy errors  
     ReentrancyAttack = 101,

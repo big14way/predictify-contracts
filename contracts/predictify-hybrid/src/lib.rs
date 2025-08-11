@@ -447,7 +447,11 @@ impl PredictifyHybrid {
         match MarketStateManager::get_market(&env, &market_id) {
             Ok(market) => {
                 let current_time = env.ledger().timestamp();
-                TimeUtils::time_difference(current_time, market.end_time)
+                if current_time > market.end_time {
+                    current_time - market.end_time
+                } else {
+                    0
+                }
             },
             Err(_) => 0,
         }
@@ -1202,6 +1206,16 @@ impl PredictifyHybrid {
     /// Validate dispute resolution conditions
     pub fn validate_dispute_resolution(env: Env, dispute_id: Symbol) -> bool {
         DisputeManager::validate_dispute_resolution_conditions(&env, dispute_id).unwrap_or_default()
+    }
+
+    /// Validate if a market is ready for resolution
+    pub fn validate_market_resolution(env: Env, market_id: Symbol) -> bool {
+        match MarketStateManager::get_market(&env, &market_id) {
+            Ok(market) => {
+                markets::MarketValidator::validate_market_for_resolution(&env, &market).is_ok()
+            },
+            Err(_) => false,
+        }
     }
 
     // ===== DYNAMIC THRESHOLD FUNCTIONS =====

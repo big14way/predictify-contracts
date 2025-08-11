@@ -131,7 +131,7 @@ impl OracleProvider {
     pub fn name(&self) -> &'static str {
         match self {
             OracleProvider::Reflector => "Reflector",
-            OracleProvider::Pyth => "Pyth",
+            OracleProvider::Pyth => "Pyth Network",
             OracleProvider::BandProtocol => "Band Protocol",
             OracleProvider::DIA => "DIA",
         }
@@ -139,7 +139,7 @@ impl OracleProvider {
 
     /// Check if provider is supported on Stellar
     pub fn is_supported(&self) -> bool {
-        matches!(self, OracleProvider::Reflector)
+        matches!(self, OracleProvider::Reflector | OracleProvider::Pyth)
     }
 
     /// Get default feed format for provider

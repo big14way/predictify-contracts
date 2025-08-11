@@ -878,8 +878,8 @@ impl FeeCalculator {
             return Err(Error::NothingToClaim);
         }
 
-        let user_share = (user_stake * (100 - PLATFORM_FEE_PERCENTAGE)) / 100;
-        let payout = (user_share * total_pool) / winning_total;
+        let base_payout = (user_stake * total_pool) / winning_total;
+        let payout = (base_payout * (100 - PLATFORM_FEE_PERCENTAGE)) / 100;
 
         Ok(payout)
     }

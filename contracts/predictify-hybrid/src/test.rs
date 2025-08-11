@@ -645,8 +645,8 @@ fn test_fee_calculator_user_payout_after_fees() {
 
     let payout = crate::fees::FeeCalculator::calculate_user_payout_after_fees(user_stake, winning_total, total_pool).unwrap();
     
-    // Expected: (100 * 500 / 1000) * 0.98 = 49 XLM
-    assert_eq!(payout, 49_000_000_000);
+    // Expected: (100 / 500 * 1000) * 0.98 = 200 * 0.98 = 196 XLM  
+    assert_eq!(payout, 1_960_000_000);
 }
 
 #[test]
@@ -935,6 +935,9 @@ fn test_fee_analytics_fee_efficiency() {
 fn test_fee_manager_process_creation_fee() {
     let test = PredictifyTest::setup();
     
+    // Mock authorization for the fee transfer
+    test.env.mock_all_auths();
+    
     // Process creation fee
     test.env.as_contract(&test.contract_id, || {
         crate::fees::FeeManager::process_creation_fee(&test.env, &test.admin)
@@ -1207,10 +1210,10 @@ fn test_resolution_validation() {
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
     // Test validation before market ends
-    let validation = client.validate_dispute_resolution(&test.market_id);
+    let validation = client.validate_market_resolution(&test.market_id);
     assert!(validation == false);
 
-    // Test validation after market ends but before oracle resolution
+    // Test validation after market ends and with oracle result
     let market = test.env.as_contract(&test.contract_id, || {
         test.env
             .storage()
@@ -1230,7 +1233,21 @@ fn test_resolution_validation() {
         max_entry_ttl: 10000,
     });
 
-    let validation = client.validate_dispute_resolution(&test.market_id);
+    // Set oracle result for market to be resolvable
+    test.env.as_contract(&test.contract_id, || {
+        let mut market = test.env
+            .storage()
+            .persistent()
+            .get::<Symbol, Market>(&test.market_id)
+            .unwrap();
+        market.oracle_result = Some(String::from_str(&test.env, "yes"));
+        test.env
+            .storage()
+            .persistent()
+            .set(&test.market_id, &market);
+    });
+
+    let validation = client.validate_market_resolution(&test.market_id);
     assert!(validation == true);
 }
 
@@ -1459,12 +1476,13 @@ fn test_resolution_error_handling() {
 #[test]
 fn test_resolution_with_disputes() {
     let test = PredictifyTest::setup();
+    
+    // Create market using the existing test helper
     test.create_test_market();
-
+    
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
 
-    // Add votes and resolve market
-    
+    // Add votes before advancing time
     let token_sac_client = StellarAssetClient::new(&test.env, &test.token_test.token_id);
     for i in 0..5 {
         let voter = Address::generate(&test.env);
@@ -1477,6 +1495,7 @@ fn test_resolution_with_disputes() {
         );
     }
 
+    // Advance time past market end time
     let market = test.env.as_contract(&test.contract_id, || {
         test.env
             .storage()
@@ -1496,6 +1515,7 @@ fn test_resolution_with_disputes() {
         max_entry_ttl: 10000,
     });
 
+    // Fetch oracle result and resolve market
     client.fetch_oracle_result(&test.market_id, &test.pyth_contract);
     client.resolve_market(&test.market_id);
 
