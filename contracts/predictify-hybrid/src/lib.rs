@@ -1067,6 +1067,63 @@ impl PredictifyHybrid {
         fees::FeeManager::validate_fee_distribution(&env, &distribution)
     }
 
+    /// Distribute fees to multiple parties
+    pub fn distribute_fees_to_parties(
+        env: Env,
+        admin: Address,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<fees::FeeDistributionExecution, Error> {
+        fees::FeeManager::distribute_fees_to_multiple_parties(&env, admin, market_id, distribution)
+    }
+
+    /// Validate fee distribution percentages
+    pub fn validate_fee_dist_percentages(
+        env: Env,
+        distribution: Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        fees::FeeManager::validate_fee_distribution_percentages(&env, &distribution)
+    }
+
+    /// Get fee distribution configuration
+    pub fn get_fee_distribution_config(env: Env) -> Result<fees::FeeDistributionConfig, Error> {
+        fees::FeeManager::get_fee_distribution_config(&env)
+    }
+
+    /// Update fee distribution configuration
+    pub fn update_fee_distribution_config(
+        env: Env,
+        admin: Address,
+        new_distribution: Map<Address, i128>,
+    ) -> Result<fees::FeeDistributionConfig, Error> {
+        fees::FeeManager::update_fee_distribution_config(&env, admin, new_distribution)
+    }
+
+    /// Emit fee distribution event
+    pub fn emit_fee_distribution_event(
+        env: Env,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<(), Error> {
+        fees::FeeManager::emit_fee_distribution_event(&env, &market_id, &distribution)
+    }
+
+    /// Track fee distribution history
+    pub fn track_fee_distribution_history(
+        env: Env,
+        market_id: Symbol,
+    ) -> Result<Vec<fees::FeeDistributionExecution>, Error> {
+        fees::FeeManager::track_fee_distribution_history(&env, market_id)
+    }
+
+    /// Validate distribution totals
+    pub fn validate_distribution_totals(
+        env: Env,
+        distribution: Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        fees::FeeManager::validate_distribution_totals(&env, &distribution)
+    }
+
     /// Extend market duration (admin only)
     pub fn extend_market(
         env: Env,
