@@ -632,6 +632,317 @@ pub struct FeeBreakdown {
     pub user_payout_amount: i128,
 }
 
+/// Fee collection status and safety information
+///
+/// This structure provides comprehensive status information about fee collection
+/// operations, including safety checks, validation results, and operational status.
+/// Essential for monitoring and ensuring safe fee collection operations.
+///
+/// # Status Information
+///
+/// Fee collection status includes:
+/// - Collection eligibility and readiness
+/// - Safety validation results
+/// - Risk assessment and warnings
+/// - Operational status and recommendations
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Symbol};
+/// # use predictify_hybrid::fees::FeeCollectionStatus;
+/// # let env = Env::default();
+///
+/// // Get fee collection status for a market
+/// let status = FeeCollectionStatus {
+///     market_id: Symbol::new(&env, "btc_market"),
+///     is_eligible: true,
+///     safety_checks_passed: true,
+///     risk_level: String::from_str(&env, "Low"),
+///     warnings: Vec::new(&env),
+///     recommendations: Vec::new(&env),
+///     last_validation: env.ledger().timestamp(),
+/// };
+///
+/// // Check if collection is safe
+/// if status.is_eligible && status.safety_checks_passed {
+///     println!("Fee collection is safe to proceed");
+/// } else {
+///     println!("Fee collection has safety concerns");
+///     for warning in status.warnings.iter() {
+///         println!("Warning: {}", warning.to_string());
+///     }
+/// }
+/// ```
+///
+/// # Safety Features
+///
+/// Status provides safety information:
+/// - **Eligibility Check**: Whether fees can be collected
+/// - **Safety Validation**: All safety checks passed
+/// - **Risk Assessment**: Current risk level
+/// - **Warning System**: Any safety concerns
+/// - **Recommendations**: Suggested actions
+///
+/// # Integration Applications
+///
+/// - **UI Safety Indicators**: Display safety status to users
+/// - **Automated Monitoring**: Monitor collection safety
+/// - **Risk Management**: Assess collection risks
+/// - **Compliance Checking**: Ensure regulatory compliance
+/// - **Operational Safety**: Prevent unsafe operations
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeCollectionStatus {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Whether fees can be collected
+    pub is_eligible: bool,
+    /// Whether all safety checks passed
+    pub safety_checks_passed: bool,
+    /// Risk level assessment
+    pub risk_level: String,
+    /// Safety warnings
+    pub warnings: Vec<String>,
+    /// Recommendations
+    pub recommendations: Vec<String>,
+    /// Last validation timestamp
+    pub last_validation: u64,
+}
+
+/// Fee distribution tracking record
+///
+/// This structure tracks how fees are distributed across different recipients,
+/// providing transparency and auditability for fee distribution operations.
+/// Essential for financial reporting and compliance.
+///
+/// # Distribution Tracking
+///
+/// Fee distribution includes:
+/// - Recipient addresses and amounts
+/// - Distribution percentages and totals
+/// - Timestamp and transaction details
+/// - Distribution verification status
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Map};
+/// # use predictify_hybrid::fees::FeeDistribution;
+/// # let env = Env::default();
+///
+/// // Create fee distribution record
+/// let mut distribution = Map::new(&env);
+/// distribution.set(Address::generate(&env), 50_000_000); // 5 XLM
+/// distribution.set(Address::generate(&env), 30_000_000); // 3 XLM
+///
+/// let fee_distribution = FeeDistribution {
+///     market_id: Symbol::new(&env, "btc_market"),
+///     total_amount: 80_000_000, // 8 XLM total
+///     distribution: distribution,
+///     distribution_timestamp: env.ledger().timestamp(),
+///     verified: true,
+///     verification_timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Verify distribution totals
+/// let calculated_total: i128 = fee_distribution.distribution.values().sum();
+/// assert_eq!(fee_distribution.total_amount, calculated_total);
+/// ```
+///
+/// # Audit Features
+///
+/// Distribution provides audit capabilities:
+/// - **Complete Tracking**: Full record of all distributions
+/// - **Verification Status**: Whether distribution was verified
+/// - **Timestamp Records**: When distribution occurred
+/// - **Total Validation**: Ensure amounts match totals
+/// - **Recipient Tracking**: Track all fee recipients
+///
+/// # Integration Applications
+///
+/// - **Financial Reporting**: Generate distribution reports
+/// - **Audit Trails**: Maintain compliance records
+/// - **Transparency**: Provide public distribution data
+/// - **Verification**: Validate distribution accuracy
+/// - **Compliance**: Meet regulatory requirements
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeDistribution {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Total amount distributed
+    pub total_amount: i128,
+    /// Distribution to recipients
+    pub distribution: Map<Address, i128>,
+    /// Distribution timestamp
+    pub distribution_timestamp: u64,
+    /// Whether distribution was verified
+    pub verified: bool,
+    /// Verification timestamp
+    pub verification_timestamp: u64,
+}
+
+/// Fee refund record for error handling
+///
+/// This structure tracks fee refunds that occur due to errors or safety issues,
+/// providing complete audit trails for refund operations and ensuring user protection.
+///
+/// # Refund Information
+///
+/// Fee refunds include:
+/// - Refund amount and recipient
+/// - Reason for refund
+/// - Refund timestamp and status
+/// - Error details and context
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Address, Symbol};
+/// # use predictify_hybrid::fees::FeeRefund;
+/// # let env = Env::default();
+///
+/// // Create fee refund record
+/// let refund = FeeRefund {
+///     market_id: Symbol::new(&env, "btc_market"),
+///     recipient: Address::generate(&env),
+///     amount: 25_000_000, // 2.5 XLM
+///     reason: String::from_str(&env, "Safety validation failed"),
+///     refund_timestamp: env.ledger().timestamp(),
+///     status: String::from_str(&env, "Pending"),
+///     error_code: 1001,
+///     error_details: String::from_str(&env, "Fee collection safety check failed"),
+/// };
+///
+/// // Process refund
+/// println!("Refunding {} XLM to {}", 
+///     refund.amount / 10_000_000, 
+///     refund.recipient.to_string());
+/// println!("Reason: {}", refund.reason.to_string());
+/// ```
+///
+/// # Refund Features
+///
+/// Refunds provide user protection:
+/// - **Error Recovery**: Automatic refunds on errors
+/// - **Safety Protection**: Refunds for safety violations
+/// - **Complete Tracking**: Full refund audit trail
+/// - **Status Monitoring**: Track refund completion
+/// - **Error Context**: Detailed error information
+///
+/// # Integration Applications
+///
+/// - **Error Handling**: Automatic refund processing
+/// - **User Protection**: Ensure users get refunds
+/// - **Audit Trails**: Maintain refund records
+/// - **Compliance**: Meet refund requirements
+/// - **Monitoring**: Track refund patterns
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeRefund {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Refund recipient
+    pub recipient: Address,
+    /// Refund amount
+    pub amount: i128,
+    /// Refund reason
+    pub reason: String,
+    /// Refund timestamp
+    pub refund_timestamp: u64,
+    /// Refund status
+    pub status: String,
+    /// Error code
+    pub error_code: u32,
+    /// Error details
+    pub error_details: String,
+}
+
+/// Fee collection safety validation result
+///
+/// This structure provides comprehensive safety validation results for fee collection
+/// operations, including risk assessments, safety checks, and recommendations.
+/// Essential for ensuring safe and compliant fee collection.
+///
+/// # Safety Validation
+///
+/// Safety validation includes:
+/// - Overall safety status
+/// - Individual safety checks
+/// - Risk assessments
+/// - Safety recommendations
+/// - Validation details
+///
+/// # Example Usage
+///
+/// ```rust
+/// # use soroban_sdk::{Env, Symbol, Vec};
+/// # use predictify_hybrid::fees::FeeSafetyValidation;
+/// # let env = Env::default();
+///
+/// // Create safety validation result
+/// let mut safety_checks = Vec::new(&env);
+/// safety_checks.push_back(String::from_str(&env, "Market state validation: PASSED"));
+/// safety_checks.push_back(String::from_str(&env, "Fee amount validation: PASSED"));
+/// safety_checks.push_back(String::from_str(&env, "Admin authorization: PASSED"));
+///
+/// let validation = FeeSafetyValidation {
+///     market_id: Symbol::new(&env, "btc_market"),
+///     is_safe: true,
+///     safety_score: 95, // 95% safety score
+///     safety_checks: safety_checks,
+///     risk_factors: Vec::new(&env),
+///     recommendations: Vec::new(&env),
+///     validation_timestamp: env.ledger().timestamp(),
+/// };
+///
+/// // Check safety status
+/// if validation.is_safe && validation.safety_score >= 90 {
+///     println!("Fee collection is safe to proceed");
+/// } else {
+///     println!("Fee collection has safety concerns");
+///     for recommendation in validation.recommendations.iter() {
+///         println!("Recommendation: {}", recommendation.to_string());
+///     }
+/// }
+/// ```
+///
+/// # Safety Features
+///
+/// Safety validation provides:
+/// - **Comprehensive Checks**: Multiple safety validations
+/// - **Risk Assessment**: Identify potential risks
+/// - **Safety Scoring**: Quantified safety assessment
+/// - **Recommendations**: Suggested safety improvements
+/// - **Validation Tracking**: Complete validation history
+///
+/// # Integration Applications
+///
+/// - **Safety Monitoring**: Monitor collection safety
+/// - **Risk Management**: Assess and mitigate risks
+/// - **Compliance**: Ensure regulatory compliance
+/// - **User Protection**: Protect user interests
+/// - **Operational Safety**: Prevent unsafe operations
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeSafetyValidation {
+    /// Market ID
+    pub market_id: Symbol,
+    /// Whether collection is safe
+    pub is_safe: bool,
+    /// Safety score (0-100)
+    pub safety_score: u32,
+    /// Safety check results
+    pub safety_checks: Vec<String>,
+    /// Risk factors identified
+    pub risk_factors: Vec<String>,
+    /// Safety recommendations
+    pub recommendations: Vec<String>,
+    /// Validation timestamp
+    pub validation_timestamp: u64,
+}
+
 // ===== FEE MANAGER =====
 
 /// Comprehensive fee management system for the Predictify Hybrid platform.
@@ -846,6 +1157,384 @@ impl FeeManager {
             Some(history) => Ok(history),
             None => Ok(Vec::new(env)),
         }
+    }
+
+    /// Validate fee collection for a market with comprehensive safety checks
+    pub fn validate_fee_collection(
+        env: &Env,
+        market_id: Symbol,
+        fee_amount: i128,
+    ) -> Result<FeeValidationResult, Error> {
+        // Get market
+        let market = MarketStateManager::get_market(env, &market_id)?;
+
+        // Perform comprehensive validation
+        let mut errors = Vec::new(env);
+        let mut is_valid = true;
+
+        // Check market state
+        if market.winning_outcome.is_none() {
+            errors.push_back(String::from_str(env, "Market not resolved"));
+            is_valid = false;
+        }
+
+        // Check if fees already collected
+        if market.fee_collected {
+            errors.push_back(String::from_str(env, "Fees already collected"));
+            is_valid = false;
+        }
+
+        // Check fee amount validity
+        if fee_amount < MIN_FEE_AMOUNT {
+            errors.push_back(String::from_str(env, "Fee amount below minimum"));
+            is_valid = false;
+        }
+
+        if fee_amount > MAX_FEE_AMOUNT {
+            errors.push_back(String::from_str(env, "Fee amount exceeds maximum"));
+            is_valid = false;
+        }
+
+        // Check if market has sufficient stakes
+        if market.total_staked < FEE_COLLECTION_THRESHOLD {
+            errors.push_back(String::from_str(env, "Insufficient stakes for fee collection"));
+            is_valid = false;
+        }
+
+        // Calculate fee breakdown
+        let breakdown = FeeCalculator::calculate_fee_breakdown(&market)?;
+        let suggested_amount = breakdown.fee_amount;
+
+        // Validate calculated fee matches provided fee
+        if fee_amount != suggested_amount {
+            errors.push_back(String::from_str(env, "Fee amount does not match calculated amount"));
+            is_valid = false;
+        }
+
+        Ok(FeeValidationResult {
+            is_valid,
+            errors,
+            suggested_amount,
+            breakdown,
+        })
+    }
+
+    /// Track fee distribution across recipients
+    pub fn track_fee_distribution(
+        env: &Env,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<FeeDistribution, Error> {
+        // Validate distribution
+        FeeValidator::validate_fee_distribution(&distribution)?;
+
+        // Calculate total amount
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+
+        // Validate total amount
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Create distribution record
+        let fee_distribution = FeeDistribution {
+            market_id: market_id.clone(),
+            total_amount,
+            distribution: distribution.clone(),
+            distribution_timestamp: env.ledger().timestamp(),
+            verified: false,
+            verification_timestamp: 0,
+        };
+
+        // Store distribution record
+        let distribution_key = symbol_short!("fee_dist");
+        let mut distributions: Vec<FeeDistribution> = env
+            .storage()
+            .persistent()
+            .get(&distribution_key)
+            .unwrap_or(vec![env]);
+
+        distributions.push_back(fee_distribution.clone());
+        env.storage().persistent().set(&distribution_key, &distributions);
+
+        // Emit distribution tracking event
+        FeeTracker::emit_fee_distribution_tracked(env, &market_id, &distribution, total_amount)?;
+
+        Ok(fee_distribution)
+    }
+
+    /// Verify fee collection safety with comprehensive checks
+    pub fn verify_fee_collection_safety(
+        env: &Env,
+        market_id: Symbol,
+    ) -> Result<FeeSafetyValidation, Error> {
+        // Get market
+        let market = MarketStateManager::get_market(env, &market_id)?;
+
+        // Perform safety checks
+        let mut safety_checks = Vec::new(env);
+        let mut risk_factors = Vec::new(env);
+        let mut recommendations = Vec::new(env);
+        let mut safety_score = 100;
+
+        // Check market state
+        if market.winning_outcome.is_some() {
+            safety_checks.push_back(String::from_str(env, "Market state validation: PASSED"));
+        } else {
+            safety_checks.push_back(String::from_str(env, "Market state validation: FAILED"));
+            risk_factors.push_back(String::from_str(env, "Market not resolved"));
+            recommendations.push_back(String::from_str(env, "Wait for market resolution"));
+            safety_score -= 30;
+        }
+
+        // Check fee collection status
+        if !market.fee_collected {
+            safety_checks.push_back(String::from_str(env, "Fee collection status: PASSED"));
+        } else {
+            safety_checks.push_back(String::from_str(env, "Fee collection status: FAILED"));
+            risk_factors.push_back(String::from_str(env, "Fees already collected"));
+            recommendations.push_back(String::from_str(env, "Fees cannot be collected again"));
+            safety_score -= 50;
+        }
+
+        // Check stake threshold
+        if market.total_staked >= FEE_COLLECTION_THRESHOLD {
+            safety_checks.push_back(String::from_str(env, "Stake threshold: PASSED"));
+        } else {
+            safety_checks.push_back(String::from_str(env, "Stake threshold: FAILED"));
+            risk_factors.push_back(String::from_str(env, "Insufficient stakes"));
+            recommendations.push_back(String::from_str(env, "Wait for more stakes"));
+            safety_score -= 20;
+        }
+
+        // Check market age (use end_time as creation time approximation)
+        let current_time = env.ledger().timestamp();
+        let market_age = current_time - market.end_time;
+        let min_market_age = 3600; // 1 hour minimum
+
+        if market_age >= min_market_age {
+            safety_checks.push_back(String::from_str(env, "Market age validation: PASSED"));
+        } else {
+            safety_checks.push_back(String::from_str(env, "Market age validation: FAILED"));
+            risk_factors.push_back(String::from_str(env, "Market too new"));
+            recommendations.push_back(String::from_str(env, "Wait for market to mature"));
+            safety_score -= 10;
+        }
+
+        let is_safe = safety_score >= 80;
+
+        Ok(FeeSafetyValidation {
+            market_id,
+            is_safe,
+            safety_score,
+            safety_checks,
+            risk_factors,
+            recommendations,
+            validation_timestamp: current_time,
+        })
+    }
+
+    /// Emit comprehensive fee collection event
+    pub fn emit_fee_collection_event(
+        env: &Env,
+        market_id: Symbol,
+        fee_amount: i128,
+    ) -> Result<(), Error> {
+        // Get market for additional context
+        let market = MarketStateManager::get_market(env, &market_id)?;
+
+        // Emit fee collection event
+        use crate::events::EventEmitter;
+        EventEmitter::emit_fee_collected(
+            env,
+            &market_id,
+            &env.current_contract_address(),
+            fee_amount,
+            &String::from_str(env, "Platform Fee"),
+        );
+
+        // Emit performance metric
+        EventEmitter::emit_performance_metric(
+            env,
+            &String::from_str(env, "fee_coll_amt"),
+            fee_amount,
+            &String::from_str(env, "stroops"),
+            &String::from_str(env, "Fee collection completed"),
+        );
+
+        // Log fee collection analytics
+        FeeTracker::record_fee_collection_analytics(env, &market_id, fee_amount)?;
+
+        Ok(())
+    }
+
+    /// Refund fees on error with comprehensive tracking
+    pub fn refund_fee_on_error(
+        env: &Env,
+        market_id: Symbol,
+        fee_amount: i128,
+        recipient: Address,
+        error_code: u32,
+        error_details: String,
+    ) -> Result<FeeRefund, Error> {
+        // Validate refund parameters
+        if fee_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Create refund record
+        let refund = FeeRefund {
+            market_id: market_id.clone(),
+            recipient: recipient.clone(),
+            amount: fee_amount,
+            reason: String::from_str(env, "Fee collection error"),
+            refund_timestamp: env.ledger().timestamp(),
+            status: String::from_str(env, "Pending"),
+            error_code,
+            error_details: error_details.clone(),
+        };
+
+        // Store refund record
+        let refund_key = symbol_short!("fee_ref");
+        let mut refunds: Vec<FeeRefund> = env
+            .storage()
+            .persistent()
+            .get(&refund_key)
+            .unwrap_or(vec![env]);
+
+        refunds.push_back(refund.clone());
+        env.storage().persistent().set(&refund_key, &refunds);
+
+        // Transfer refund amount
+        FeeUtils::transfer_fees_to_admin(env, &recipient, fee_amount)?;
+
+        // Update refund status
+        let mut updated_refund = refund.clone();
+        updated_refund.status = String::from_str(env, "Completed");
+
+        // Emit refund event
+        use crate::events::EventEmitter;
+        EventEmitter::emit_error_logged(
+            env,
+            error_code,
+            &String::from_str(env, "Fee refund processed"),
+            &error_details,
+            Some(recipient),
+            Some(market_id.clone()),
+        );
+
+        // Log refund analytics
+        FeeTracker::record_fee_refund_analytics(env, &market_id, fee_amount)?;
+
+        Ok(updated_refund)
+    }
+
+    /// Get comprehensive fee collection status
+    pub fn get_fee_collection_status(
+        env: &Env,
+        market_id: Symbol,
+    ) -> Result<FeeCollectionStatus, Error> {
+        // Get market
+        let market = MarketStateManager::get_market(env, &market_id)?;
+
+        // Perform safety validation
+        let safety_validation = Self::verify_fee_collection_safety(env, market_id.clone())?;
+
+        // Determine eligibility
+        let is_eligible = market.winning_outcome.is_some()
+            && !market.fee_collected
+            && market.total_staked >= FEE_COLLECTION_THRESHOLD;
+
+        // Generate warnings and recommendations
+        let mut warnings = Vec::new(env);
+        let mut recommendations = Vec::new(env);
+
+        if market.winning_outcome.is_none() {
+            warnings.push_back(String::from_str(env, "Market not yet resolved"));
+            recommendations.push_back(String::from_str(env, "Wait for market resolution"));
+        }
+
+        if market.fee_collected {
+            warnings.push_back(String::from_str(env, "Fees already collected"));
+            recommendations.push_back(String::from_str(env, "No further action needed"));
+        }
+
+        if market.total_staked < FEE_COLLECTION_THRESHOLD {
+            warnings.push_back(String::from_str(env, "Insufficient stakes for fee collection"));
+            recommendations.push_back(String::from_str(env, "Wait for more stakes"));
+        }
+
+        if safety_validation.safety_score < 80 {
+            warnings.push_back(String::from_str(env, "Safety score below threshold"));
+            recommendations.push_back(String::from_str(env, "Review safety validation results"));
+        }
+
+        // Add safety validation recommendations
+        for recommendation in safety_validation.recommendations.iter() {
+            recommendations.push_back(recommendation.clone());
+        }
+
+        Ok(FeeCollectionStatus {
+            market_id,
+            is_eligible,
+            safety_checks_passed: safety_validation.is_safe,
+            risk_level: if safety_validation.safety_score >= 90 {
+                String::from_str(env, "Low")
+            } else if safety_validation.safety_score >= 70 {
+                String::from_str(env, "Medium")
+            } else if safety_validation.safety_score >= 50 {
+                String::from_str(env, "High")
+            } else {
+                String::from_str(env, "Critical")
+            },
+            warnings,
+            recommendations,
+            last_validation: env.ledger().timestamp(),
+        })
+    }
+
+    /// Validate fee distribution for accuracy and compliance
+    pub fn validate_fee_distribution(
+        env: &Env,
+        distribution: &Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Validate each distribution entry
+        for (recipient, amount) in distribution.iter() {
+            // Check amount validity
+            if amount <= 0 {
+                return Err(Error::InvalidInput);
+            }
+
+            // Check for reasonable amount limits
+            if amount > MAX_FEE_AMOUNT {
+                return Err(Error::InvalidInput);
+            }
+        }
+
+        // Calculate and validate total
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+        
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Check for reasonable total limits
+        if total_amount > MAX_FEE_AMOUNT * 10 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(true)
     }
 }
 
@@ -1208,6 +1897,44 @@ impl FeeValidator {
         Ok(())
     }
 
+    /// Validate fee distribution for accuracy and compliance
+    pub fn validate_fee_distribution(distribution: &Map<Address, i128>) -> Result<(), Error> {
+        // Check if distribution is empty
+        if distribution.is_empty() {
+            return Err(Error::InvalidInput);
+        }
+
+        // Validate each distribution entry
+        for (recipient, amount) in distribution.iter() {
+            // Check amount validity
+            if amount <= 0 {
+                return Err(Error::InvalidInput);
+            }
+
+            // Check for reasonable amount limits
+            if amount > MAX_FEE_AMOUNT {
+                return Err(Error::InvalidInput);
+            }
+        }
+
+        // Calculate and validate total
+        let mut total_amount: i128 = 0;
+        for (_, amount) in distribution.iter() {
+            total_amount += amount;
+        }
+        
+        if total_amount <= 0 {
+            return Err(Error::InvalidInput);
+        }
+
+        // Check for reasonable total limits
+        if total_amount > MAX_FEE_AMOUNT * 10 {
+            return Err(Error::InvalidInput);
+        }
+
+        Ok(())
+    }
+
     /// Validate market fees
     pub fn validate_market_fees(market: &Market) -> Result<FeeValidationResult, Error> {
         let mut errors = Vec::new(&Env::default());
@@ -1398,6 +2125,97 @@ impl FeeTracker {
         );
         env.storage().persistent().set(&storage_key, &update_data);
         Ok(())
+    }
+
+    /// Emit fee distribution tracking event
+    pub fn emit_fee_distribution_tracked(
+        env: &Env,
+        market_id: &Symbol,
+        distribution: &Map<Address, i128>,
+        total_amount: i128,
+    ) -> Result<(), Error> {
+        // Emit distribution event
+        use crate::events::EventEmitter;
+        EventEmitter::emit_performance_metric(
+            env,
+            &String::from_str(env, "fee_dist_total"),
+            total_amount,
+            &String::from_str(env, "stroops"),
+            &String::from_str(env, "Fee distribution tracked"),
+        );
+
+        // Log distribution analytics
+        let distribution_key = symbol_short!("dist_anal");
+        let current_total: i128 = env.storage().persistent().get(&distribution_key).unwrap_or(0);
+        env.storage()
+            .persistent()
+            .set(&distribution_key, &(current_total + total_amount));
+
+        Ok(())
+    }
+
+    /// Record fee collection analytics
+    pub fn record_fee_collection_analytics(
+        env: &Env,
+        market_id: &Symbol,
+        fee_amount: i128,
+    ) -> Result<(), Error> {
+        // Update collection analytics
+        let analytics_key = symbol_short!("coll_anal");
+        let current_total: i128 = env.storage().persistent().get(&analytics_key).unwrap_or(0);
+        env.storage()
+            .persistent()
+            .set(&analytics_key, &(current_total + fee_amount));
+
+        // Record collection timestamp
+        let timestamp_key = symbol_short!("coll_t");
+        env.storage()
+            .persistent()
+            .set(&timestamp_key, &env.ledger().timestamp());
+
+        Ok(())
+    }
+
+    /// Record fee refund analytics
+    pub fn record_fee_refund_analytics(
+        env: &Env,
+        market_id: &Symbol,
+        refund_amount: i128,
+    ) -> Result<(), Error> {
+        // Update refund analytics
+        let refund_key = symbol_short!("refund_a");
+        let current_total: i128 = env.storage().persistent().get(&refund_key).unwrap_or(0);
+        env.storage()
+            .persistent()
+            .set(&refund_key, &(current_total + refund_amount));
+
+        // Record refund timestamp
+        let timestamp_key = symbol_short!("refund_t");
+        env.storage()
+            .persistent()
+            .set(&timestamp_key, &env.ledger().timestamp());
+
+        Ok(())
+    }
+
+    /// Get fee distribution history
+    pub fn get_fee_distribution_history(env: &Env) -> Result<Vec<FeeDistribution>, Error> {
+        let distribution_key = symbol_short!("fee_dist");
+        Ok(env
+            .storage()
+            .persistent()
+            .get(&distribution_key)
+            .unwrap_or(vec![env]))
+    }
+
+    /// Get fee refund history
+    pub fn get_fee_refund_history(env: &Env) -> Result<Vec<FeeRefund>, Error> {
+        let refund_key = symbol_short!("fee_ref");
+        Ok(env
+            .storage()
+            .persistent()
+            .get(&refund_key)
+            .unwrap_or(vec![env]))
     }
 }
 
