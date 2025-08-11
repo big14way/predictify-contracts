@@ -1004,6 +1004,69 @@ impl PredictifyHybrid {
         fees::FeeManager::collect_fees(&env, admin, market_id)
     }
 
+    /// Validate fee collection for a market with comprehensive safety checks
+    pub fn validate_fee_collection(
+        env: Env,
+        market_id: Symbol,
+        fee_amount: i128,
+    ) -> Result<fees::FeeValidationResult, Error> {
+        fees::FeeManager::validate_fee_collection(&env, market_id, fee_amount)
+    }
+
+    /// Track fee distribution across recipients
+    pub fn track_fee_distribution(
+        env: Env,
+        market_id: Symbol,
+        distribution: Map<Address, i128>,
+    ) -> Result<fees::FeeDistribution, Error> {
+        fees::FeeManager::track_fee_distribution(&env, market_id, distribution)
+    }
+
+    /// Verify fee collection safety with comprehensive checks
+    pub fn verify_fee_collection_safety(
+        env: Env,
+        market_id: Symbol,
+    ) -> Result<fees::FeeSafetyValidation, Error> {
+        fees::FeeManager::verify_fee_collection_safety(&env, market_id)
+    }
+
+    /// Emit comprehensive fee collection event
+    pub fn emit_fee_collection_event(
+        env: Env,
+        market_id: Symbol,
+        fee_amount: i128,
+    ) -> Result<(), Error> {
+        fees::FeeManager::emit_fee_collection_event(&env, market_id, fee_amount)
+    }
+
+    /// Refund fees on error with comprehensive tracking
+    pub fn refund_fee_on_error(
+        env: Env,
+        market_id: Symbol,
+        fee_amount: i128,
+        recipient: Address,
+        error_code: u32,
+        error_details: String,
+    ) -> Result<fees::FeeRefund, Error> {
+        fees::FeeManager::refund_fee_on_error(&env, market_id, fee_amount, recipient, error_code, error_details)
+    }
+
+    /// Get comprehensive fee collection status
+    pub fn get_fee_collection_status(
+        env: Env,
+        market_id: Symbol,
+    ) -> Result<fees::FeeCollectionStatus, Error> {
+        fees::FeeManager::get_fee_collection_status(&env, market_id)
+    }
+
+    /// Validate fee distribution for accuracy and compliance
+    pub fn validate_fee_distribution(
+        env: Env,
+        distribution: Map<Address, i128>,
+    ) -> Result<bool, Error> {
+        fees::FeeManager::validate_fee_distribution(&env, &distribution)
+    }
+
     /// Extend market duration (admin only)
     pub fn extend_market(
         env: Env,
