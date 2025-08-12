@@ -124,6 +124,19 @@ impl MarketCreator {
         // Store market
         env.storage().persistent().set(&market_id, &market);
 
+        // Emit market creation event
+        let market_created_event = crate::events::MarketCreatedEvent {
+            market_id: market_id.clone(),
+            question: market.question.clone(),
+            outcomes: market.outcomes.clone(),
+            admin: admin.clone(),
+            end_time: market.end_time,
+            timestamp: env.ledger().timestamp(),
+        };
+        env.storage()
+            .persistent()
+            .set(&Symbol::new(env, "mkt_crt"), &market_created_event);
+
         Ok(market_id)
     }
 

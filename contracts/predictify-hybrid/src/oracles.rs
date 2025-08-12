@@ -773,10 +773,33 @@ impl ReflectorOracle {
         let reflector_client = ReflectorOracleClient::new(env, self.contract_id.clone());
         Ok(reflector_client.is_healthy())
     }
+
+    /// Validate feed ID format for Reflector oracle
+    pub fn validate_feed_id(&self, feed_id: &String) -> bool {
+        // Reflector accepts both simple asset symbols and asset/USD pairs
+        !feed_id.is_empty() && feed_id.len() >= 3
+    }
+
+    /// Check if the feed is active for Reflector oracle
+    pub fn is_feed_active(&self, _feed_id: &String) -> bool {
+        // For testing purposes, all supported feeds are considered active
+        // In production, this would check the actual feed status from the contract
+        true
+    }
 }
 
 impl OracleInterface for ReflectorOracle {
     fn get_price(&self, env: &Env, feed_id: &String) -> Result<i128, Error> {
+        // Validate feed ID format
+        if !self.validate_feed_id(feed_id) {
+            return Err(Error::InvalidOracleFeed);
+        }
+
+        // Check if feed is configured
+        if !self.is_feed_active(feed_id) {
+            return Err(Error::InvalidOracleFeed);
+        }
+
         self.get_reflector_price(env, feed_id)
     }
 

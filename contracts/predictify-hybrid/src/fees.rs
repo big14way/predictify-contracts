@@ -1208,13 +1208,14 @@ impl FeeValidator {
 
     /// Validate market fees
     pub fn validate_market_fees(market: &Market) -> Result<FeeValidationResult, Error> {
-        let mut errors = Vec::new(&Env::default());
+        let env = market.outcomes.env(); // Get environment from market
+        let mut errors = Vec::new(env);
         let mut is_valid = true;
 
         // Check if market has sufficient stakes
         if market.total_staked < FEE_COLLECTION_THRESHOLD {
             errors.push_back(String::from_str(
-                &Env::default(),
+                env,
                 "Insufficient stakes for fee collection",
             ));
             is_valid = false;
@@ -1222,7 +1223,7 @@ impl FeeValidator {
 
         // Check if fees already collected
         if market.fee_collected {
-            errors.push_back(String::from_str(&Env::default(), "Fees already collected"));
+            errors.push_back(String::from_str(env, "Fees already collected"));
             is_valid = false;
         }
 
