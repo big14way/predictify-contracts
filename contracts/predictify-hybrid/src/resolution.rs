@@ -1138,6 +1138,10 @@ impl MarketResolutionManager {
         // Get the market from storage
         let mut market = MarketStateManager::get_market(env, market_id)?;
 
+        // Update market state based on current time
+        let current_time = env.ledger().timestamp();
+        market.state = MarketState::from_market(&market, current_time);
+
         // Validate market for resolution
         MarketResolutionValidator::validate_market_for_resolution(env, &market)?;
 
@@ -1199,6 +1203,10 @@ impl MarketResolutionManager {
         // Get the market
         let mut market = MarketStateManager::get_market(env, market_id)?;
 
+        // Update market state based on current time
+        let current_time = env.ledger().timestamp();
+        market.state = MarketState::from_market(&market, current_time);
+
         // Validate outcome
         MarketResolutionValidator::validate_outcome(env, outcome, &market.outcomes)?;
 
@@ -1225,12 +1233,35 @@ impl MarketResolutionManager {
 
     /// Get market resolution
 
-    pub fn get_market_resolution(_env: &Env, _market_id: &Symbol) -> Result<Option<MarketResolution>, Error> {
-
-        // For now, return None since we don't store complex types in storage
-        // In a real implementation, you would store this in a more sophisticated way
-
-        Ok(None)
+    pub fn get_market_resolution(env: &Env, market_id: &Symbol) -> Result<Option<MarketResolution>, Error> {
+        // Get market from storage to reconstruct resolution
+        match MarketStateManager::get_market(env, market_id) {
+            Ok(market) => {
+                // Only return resolution if market has been resolved
+                if let Some(final_outcome) = &market.winning_outcome {
+                    let community_consensus = MarketAnalytics::calculate_community_consensus(&market);
+                    let oracle_result = market.oracle_result.clone().unwrap_or_else(|| String::from_str(env, ""));
+                    
+                    let resolution = MarketResolution {
+                        market_id: market_id.clone(),
+                        final_outcome: final_outcome.clone(),
+                        oracle_result,
+                        community_consensus,
+                        resolution_timestamp: env.ledger().timestamp(), // Approximate timestamp
+                        resolution_method: MarketResolutionAnalytics::determine_resolution_method(
+                            &market.oracle_result.clone().unwrap_or_else(|| String::from_str(env, "")),
+                            &MarketAnalytics::calculate_community_consensus(&market),
+                        ),
+                        confidence_score: 85, // Default confidence
+                    };
+                    
+                    Ok(Some(resolution))
+                } else {
+                    Ok(None)
+                }
+            },
+            Err(_) => Ok(None)
+        }
     }
 
     /// Validate market resolution
@@ -1476,10 +1507,10 @@ impl ResolutionUtils {
     pub fn get_resolution_state(_env: &Env, market: &Market) -> ResolutionState {
         if market.winning_outcome.is_some() {
             ResolutionState::MarketResolved
-        } else if market.oracle_result.is_some() {
-            ResolutionState::OracleResolved
         } else if market.total_dispute_stakes() > 0 {
             ResolutionState::Disputed
+        } else if market.oracle_result.is_some() {
+            ResolutionState::OracleResolved
         } else {
             ResolutionState::Active
         }
