@@ -1386,8 +1386,10 @@ impl PredictifyHybrid {
         ConfigUtils::get_config_summary(&config)
     }
 
+
     /// Extend market duration with validation and fee handling
     pub fn extend_market_duration(
+
         env: Env,
         admin: Address,
         market_id: Symbol,
