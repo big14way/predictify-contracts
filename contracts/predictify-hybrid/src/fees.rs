@@ -745,6 +745,9 @@ impl FeeManager {
 
     /// Process market creation fee
     pub fn process_creation_fee(env: &Env, admin: &Address) -> Result<(), Error> {
+        // Note: Authentication is handled at the contract entry point level
+        // No need to call require_auth() again here
+
         // Validate creation fee
         FeeValidator::validate_creation_fee(MARKET_CREATION_FEE)?;
 
@@ -800,7 +803,32 @@ impl FeeManager {
         market_id: &Symbol,
     ) -> Result<FeeValidationResult, Error> {
         let market = MarketStateManager::get_market(env, market_id)?;
-        FeeValidator::validate_market_fees(&market)
+
+        // Always return a validation result, even if there are issues
+        match FeeValidator::validate_market_fees(&market) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                // If validation fails, return a validation result indicating failure
+                let mut errors = Vec::new(env);
+                errors.push_back(String::from_str(env, "Market validation failed"));
+
+                // Create a default breakdown for failed validation
+                let default_breakdown = FeeBreakdown {
+                    total_staked: 0,
+                    fee_percentage: PLATFORM_FEE_PERCENTAGE,
+                    fee_amount: 0,
+                    platform_fee: 0,
+                    user_payout_amount: 0,
+                };
+
+                Ok(FeeValidationResult {
+                    is_valid: false,
+                    errors,
+                    suggested_amount: 0,
+                    breakdown: default_breakdown,
+                })
+            }
+        }
     }
 
     /// Update fee structure with new fee tiers

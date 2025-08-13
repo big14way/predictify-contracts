@@ -908,17 +908,21 @@ impl OracleResolutionManager {
         MarketStateManager::set_oracle_result(&mut market, outcome.clone());
         MarketStateManager::update_market(env, market_id, &market);
 
+        // Store the oracle resolution for later retrieval
+        // Use a simple key combining "oracle_res" with the market_id
+        let storage_key = Symbol::new(env, "oracle_res");
+        env.storage().persistent().set(&(storage_key, market_id.clone()), &resolution);
+
         Ok(resolution)
     }
 
     /// Get oracle resolution for a market
+    pub fn get_oracle_resolution(env: &Env, market_id: &Symbol) -> Result<Option<OracleResolution>, Error> {
+        // Retrieve the stored oracle resolution
+        let storage_key = Symbol::new(env, "oracle_res");
+        let resolution: Option<OracleResolution> = env.storage().persistent().get(&(storage_key, market_id.clone()));
 
-    pub fn get_oracle_resolution(_env: &Env, _market_id: &Symbol) -> Result<Option<OracleResolution>, Error> {
-
-        // For now, return None since we don't store complex types in storage
-        // In a real implementation, you would store this in a more sophisticated way
-
-        Ok(None)
+        Ok(resolution)
     }
 
     /// Validate oracle resolution
@@ -1187,6 +1191,9 @@ impl MarketResolutionManager {
         MarketStateManager::set_winning_outcome(&mut market, final_result.clone(), Some(market_id));
         MarketStateManager::update_market(env, market_id, &market);
 
+        // Update resolution analytics
+        MarketResolutionAnalytics::update_resolution_analytics(env, &resolution)?;
+
         Ok(resolution)
     }
 
@@ -1425,11 +1432,11 @@ impl OracleResolutionAnalytics {
     }
 
     /// Get oracle resolution statistics
-    pub fn get_oracle_stats(_env: &Env) -> Result<OracleStats, Error> {
+    pub fn get_oracle_stats(env: &Env) -> Result<OracleStats, Error> {
 
         // For now, return default stats since we don't store complex types
 
-        Ok(OracleStats::default())
+        Ok(OracleStats::new(env))
     }
 }
 
@@ -1480,19 +1487,54 @@ impl MarketResolutionAnalytics {
     }
 
     /// Calculate resolution analytics
-    pub fn calculate_resolution_analytics(_env: &Env) -> Result<ResolutionAnalytics, Error> {
+    pub fn calculate_resolution_analytics(env: &Env) -> Result<ResolutionAnalytics, Error> {
+        // Get stored analytics or create new ones
+        let analytics_key = Symbol::new(env, "res_analytics");
+        let analytics: ResolutionAnalytics = env.storage().persistent().get(&analytics_key)
+            .unwrap_or_else(|| ResolutionAnalytics::new(env));
 
-        // For now, return default analytics since we don't store complex types
-
-        Ok(ResolutionAnalytics::default())
+        Ok(analytics)
     }
 
     /// Update resolution analytics
     pub fn update_resolution_analytics(
-        _env: &Env,
-        _resolution: &MarketResolution,
+        env: &Env,
+        resolution: &MarketResolution,
     ) -> Result<(), Error> {
-        // For now, do nothing since we don't store complex types
+        // Get current analytics
+        let analytics_key = Symbol::new(env, "res_analytics");
+        let mut analytics: ResolutionAnalytics = env.storage().persistent().get(&analytics_key)
+            .unwrap_or_else(|| ResolutionAnalytics::new(env));
+
+        // Update counters
+        analytics.total_resolutions += 1;
+
+        match resolution.resolution_method {
+            ResolutionMethod::OracleOnly => analytics.oracle_resolutions += 1,
+            ResolutionMethod::CommunityOnly => analytics.community_resolutions += 1,
+            ResolutionMethod::Hybrid => analytics.hybrid_resolutions += 1,
+            ResolutionMethod::AdminOverride => {
+                // Count admin overrides as oracle resolutions for simplicity
+                analytics.oracle_resolutions += 1;
+            }
+            ResolutionMethod::DisputeResolution => {
+                // Count dispute resolutions as hybrid for simplicity
+                analytics.hybrid_resolutions += 1;
+            }
+        }
+
+        // Update average confidence (simple running average)
+        if analytics.total_resolutions == 1 {
+            analytics.average_confidence = resolution.confidence_score as i128;
+        } else {
+            let total_confidence = (analytics.average_confidence * (analytics.total_resolutions - 1) as i128)
+                + resolution.confidence_score as i128;
+            analytics.average_confidence = total_confidence / analytics.total_resolutions as i128;
+        }
+
+        // Store updated analytics
+        env.storage().persistent().set(&analytics_key, &analytics);
+
         Ok(())
     }
 }
@@ -1646,28 +1688,42 @@ pub struct OracleStats {
     pub provider_distribution: Map<OracleProvider, u32>,
 }
 
-impl Default for OracleStats {
-    fn default() -> Self {
+impl OracleStats {
+    pub fn new(env: &Env) -> Self {
         Self {
             total_resolutions: 0,
             successful_resolutions: 0,
             average_confidence: 0,
-            provider_distribution: Map::new(&soroban_sdk::Env::default()),
+            provider_distribution: Map::new(env),
         }
     }
 }
 
-impl Default for ResolutionAnalytics {
+impl Default for OracleStats {
     fn default() -> Self {
+        // This should not be used in contract context - use new() instead
+        panic!("Use OracleStats::new(env) instead of default()")
+    }
+}
+
+impl ResolutionAnalytics {
+    pub fn new(env: &Env) -> Self {
         Self {
             total_resolutions: 0,
             oracle_resolutions: 0,
             community_resolutions: 0,
             hybrid_resolutions: 0,
             average_confidence: 0,
-            resolution_times: Vec::new(&soroban_sdk::Env::default()),
-            outcome_distribution: Map::new(&soroban_sdk::Env::default()),
+            resolution_times: Vec::new(env),
+            outcome_distribution: Map::new(env),
         }
+    }
+}
+
+impl Default for ResolutionAnalytics {
+    fn default() -> Self {
+        // This should not be used in contract context - use new() instead
+        panic!("Use ResolutionAnalytics::new(env) instead of default()")
     }
 }
 

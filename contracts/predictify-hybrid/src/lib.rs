@@ -373,7 +373,7 @@ impl PredictifyHybrid {
 
     /// Get oracle statistics
     pub fn get_oracle_stats(env: Env) -> resolution::OracleStats {
-        resolution::OracleResolutionAnalytics::get_oracle_stats(&env).unwrap_or_default()
+        resolution::OracleResolutionAnalytics::get_oracle_stats(&env).unwrap_or_else(|_| resolution::OracleStats::new(&env))
     }
 
     /// Process winnings claim and calculate payouts for resolved markets
@@ -1728,8 +1728,22 @@ impl PredictifyHybrid {
     /// Validate oracle configuration
     pub fn validate_oracle_config(env: Env, oracle_config: OracleConfig) -> ValidationResult {
         let mut result = ValidationResult::valid();
-        
-        if let Err(_error) = crate::errors::helpers::require_valid_oracle_config(&env, &oracle_config) {
+
+        // Validate threshold
+        if oracle_config.threshold <= 0 {
+            result.add_error();
+        }
+
+        // Validate comparison operator
+        if oracle_config.comparison != String::from_str(&env, "gt")
+            && oracle_config.comparison != String::from_str(&env, "lt")
+            && oracle_config.comparison != String::from_str(&env, "eq")
+        {
+            result.add_error();
+        }
+
+        // Validate feed_id
+        if oracle_config.feed_id.is_empty() {
             result.add_error();
         }
 

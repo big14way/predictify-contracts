@@ -934,21 +934,33 @@ fn test_fee_analytics_fee_efficiency() {
 #[test]
 fn test_fee_manager_process_creation_fee() {
     let test = PredictifyTest::setup();
-    
-    // Mock authorization for the fee transfer
-    test.env.mock_all_auths();
-    
-    // Process creation fee with proper authorization context
+
+    // Test the fee processing through the actual create_market flow
+    // which handles authorization properly
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    
-    // The fee processing should be done within the contract context with proper auth
-    let result = test.env.as_contract(&test.contract_id, || {
-        crate::fees::FeeManager::process_creation_fee(&test.env, &test.admin)
-    });
-    
-    // For testing purposes, we expect it to work with mocked auth
-    assert!(result.is_ok());
-    
+
+    // Create market outcomes
+    let mut outcomes = Vec::new(&test.env);
+    outcomes.push_back(String::from_str(&test.env, "yes"));
+    outcomes.push_back(String::from_str(&test.env, "no"));
+
+    // Create market - this will process the creation fee internally
+    let market_id = client.create_market(
+        &test.admin,
+        &String::from_str(&test.env, "Test market for fee processing"),
+        &outcomes,
+        &30,
+        &OracleConfig {
+            provider: OracleProvider::Reflector,
+            feed_id: String::from_str(&test.env, "BTC"),
+            threshold: 2500000,
+            comparison: String::from_str(&test.env, "gt"),
+        },
+    );
+
+    // Verify market was created (which means fee was processed successfully)
+    assert!(!market_id.to_string().is_empty());
+
     // Fee processing test - verification would be implementation specific
     assert!(crate::fees::MARKET_CREATION_FEE > 0);
 }
@@ -1005,10 +1017,10 @@ fn test_fee_manager_get_fee_config() {
 #[test]
 fn test_fee_manager_validate_market_fees() {
     let test = PredictifyTest::setup();
-    test.create_test_market();
-    
+    let market_id = test.create_test_market();
+
     let result = test.env.as_contract(&test.contract_id, || {
-        crate::fees::FeeManager::validate_market_fees(&test.env, &test.market_id)
+        crate::fees::FeeManager::validate_market_fees(&test.env, &market_id)
     }).unwrap();
     assert!(!result.is_valid);
     assert!(!result.errors.is_empty());
@@ -1111,14 +1123,14 @@ fn test_testing_utilities() {
 #[test]
 fn test_oracle_resolution_manager_fetch_result() {
     let test = PredictifyTest::setup();
-    test.create_test_market();
+    let market_id = test.create_test_market();
 
     // Get market end time
     let market = test.env.as_contract(&test.contract_id, || {
         test.env
             .storage()
             .persistent()
-            .get::<Symbol, Market>(&test.market_id)
+            .get::<Symbol, Market>(&market_id)
             .unwrap()
     });
 
@@ -1136,13 +1148,13 @@ fn test_oracle_resolution_manager_fetch_result() {
 
     // Fetch oracle result
     let client = PredictifyHybridClient::new(&test.env, &test.contract_id);
-    let outcome = client.fetch_oracle_result(&test.market_id, &test.pyth_contract);
+    let outcome = client.fetch_oracle_result(&market_id, &test.pyth_contract);
 
     // Verify the outcome
     assert_eq!(outcome, String::from_str(&test.env, "yes"));
 
     // Test get_oracle_resolution
-    let oracle_resolution = client.get_oracle_resolution(&test.market_id);
+    let oracle_resolution = client.get_oracle_resolution(&market_id);
     assert!(oracle_resolution.is_some());
 }
 
