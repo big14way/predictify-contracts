@@ -1673,8 +1673,8 @@ impl FeeManager {
                 let mut default_distribution = Map::new(env);
                 let admin: Option<Address> = env.storage().persistent().get(&Symbol::new(env, "Admin"));
                 
-                if let Some(admin_address) = admin {
-                    default_distribution.set(admin_address, 100); // 100% to admin
+                if let Some(ref admin_address) = admin {
+                    default_distribution.set(admin_address.clone(), 100); // 100% to admin
                 }
 
                 Ok(FeeDistributionConfig {
@@ -1685,7 +1685,7 @@ impl FeeManager {
                     min_distribution_percentage: 5,
                     max_distribution_percentage: 80,
                     distribution_name: String::from_str(env, "Default Distribution"),
-                    created_by: admin.unwrap_or(Address::generate(env)),
+                    created_by: admin.unwrap_or_else(|| Address::from_str(env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF")),
                     created_at: env.ledger().timestamp(),
                     is_active: true,
                 })
@@ -1780,11 +1780,12 @@ impl FeeManager {
             .unwrap_or(vec![env]);
 
         // Filter history for specific market
-        let market_history: Vec<FeeDistributionExecution> = history
-            .iter()
-            .filter(|execution| execution.market_id == market_id)
-            .cloned()
-            .collect();
+        let mut market_history = Vec::new(env);
+        for execution in history.iter() {
+            if execution.market_id == market_id {
+                market_history.push_back(execution);
+            }
+        }
 
         Ok(market_history)
     }
@@ -2786,7 +2787,7 @@ pub mod testing {
             old_fee_percentage: 200, // 2%
             new_fee_percentage: 220, // 2.2%
             reason: String::from_str(env, "Activity level increased"),
-            admin: Address::generate(env),
+            admin: Address::from_str(env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
             calculation_factors: testing::create_test_fee_calculation_factors(env),
         }
     }
@@ -3262,7 +3263,7 @@ impl FeeDistributionExecution {
 
     /// Get distribution amount for a specific address
     pub fn get_amount_for_address(&self, address: &Address) -> Option<i128> {
-        self.distribution.get(address)
+        self.distribution.get(address.clone())
     }
 
     /// Get all recipient addresses
@@ -3413,9 +3414,9 @@ impl FeeDistributionGovernance {
     /// Add a vote to the proposal
     pub fn add_vote(&mut self, voter: Address, vote: bool) {
         // Check if voter already voted
-        if self.votes.contains_key(&voter) {
+        if self.votes.contains_key(voter.clone()) {
             // Update existing vote
-            let old_vote = self.votes.get(&voter).unwrap();
+            let old_vote = self.votes.get(voter.clone()).unwrap();
             if old_vote != vote {
                 if old_vote {
                     self.yes_votes -= 1;
@@ -3559,8 +3560,8 @@ impl FeeDistributionAnalytics {
             // Aggregate recipient statistics
             for (address, amount) in execution.distribution.iter() {
                 let address_str = address.to_string();
-                let current_amount = recipient_stats.get(&address_str).unwrap_or(0);
-                recipient_stats.set(address_str, current_amount + amount);
+                let current_amount = recipient_stats.get(address_str.clone()).unwrap_or(0);
+                recipient_stats.set(address_str.clone(), current_amount + amount);
             }
         }
 
@@ -3819,6 +3820,7 @@ impl FeeDistributionManager {
                 let mut default_distribution = Map::new(env);
                 let admin: Option<Address> = env.storage().persistent().get(&Symbol::new(env, "Admin"));
                 
+                let admin_clone = admin.clone();
                 if let Some(admin_address) = admin {
                     default_distribution.set(admin_address, 100); // 100% to admin
                 }
@@ -3831,7 +3833,7 @@ impl FeeDistributionManager {
                     min_distribution_percentage: 5,
                     max_distribution_percentage: 80,
                     distribution_name: String::from_str(env, "Default Distribution"),
-                    created_by: admin.unwrap_or(Address::generate(env)),
+                    created_by: admin_clone.unwrap_or_else(|| Address::from_str(env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF")),
                     created_at: env.ledger().timestamp(),
                     is_active: true,
                 })
@@ -3926,11 +3928,12 @@ impl FeeDistributionManager {
             .unwrap_or(vec![env]);
 
         // Filter history for specific market
-        let market_history: Vec<FeeDistributionExecution> = history
-            .iter()
-            .filter(|execution| execution.market_id == market_id)
-            .cloned()
-            .collect();
+        let mut market_history = Vec::new(env);
+        for execution in history.iter() {
+            if execution.market_id == market_id {
+                market_history.push_back(execution);
+            }
+        }
 
         Ok(market_history)
     }
