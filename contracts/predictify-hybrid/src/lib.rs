@@ -4,6 +4,8 @@ extern crate alloc;
 
 // Module declarations - all modules enabled
 mod admin;
+mod batch_operations;
+mod circuit_breaker;
 mod config;
 mod disputes;
 mod errors;
@@ -20,6 +22,12 @@ mod utils;
 mod validation;
 mod validation_tests;
 mod voting;
+
+#[cfg(test)]
+mod circuit_breaker_tests;
+
+#[cfg(test)]
+mod batch_operations_tests;
 
 #[cfg(test)]
 mod integration_test;

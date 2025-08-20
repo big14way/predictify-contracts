@@ -10,6 +10,7 @@ use soroban_sdk::{contracterror, Env, String, Vec};
 #[repr(u32)]
 pub enum Error {
 
+
     // Core errors
     Unauthorized = 1,
     MarketClosed = 2,
@@ -363,10 +364,12 @@ pub mod helpers {
         String::from_str(context.call_chain.env(), "Error details for debugging")
     }
 
+
     /// Emit error event for logging
     pub fn emit_error_event(_env: &Env, _detailed_error: &DetailedError) {
         // Emit error event for debugging
         // In a real implementation, this would emit a proper Soroban event
+
 
     }
 }

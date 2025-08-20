@@ -3,10 +3,12 @@
 use soroban_sdk::{contracttype, token, vec, Address, Env, Map, String, Symbol, Vec};
 
 
+
 use crate::{
     errors::Error,
     types::{Market, OracleConfig, OracleProvider, MarketCreationParams, MarketState},
 };
+
 
 
 /// Market management system for Predictify Hybrid contract
@@ -430,6 +432,7 @@ impl MarketValidator {
             return Err(Error::InvalidInput);
         }
 
+
         // Validate outcomes
         if outcomes.len() < 2 {
             return Err(Error::InvalidOutcome);
@@ -444,6 +447,7 @@ impl MarketValidator {
         // Validate duration
         if duration_days == 0 || duration_days > 365 {
             return Err(Error::InvalidInput);
+
         }
 
         Ok(())
