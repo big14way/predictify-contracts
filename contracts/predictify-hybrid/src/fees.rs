@@ -1,5 +1,4 @@
 use soroban_sdk::{contracttype, symbol_short, vec, Address, Env, Map, String, Symbol, Vec};
-use alloc::format;
 
 use crate::errors::Error;
 use crate::markets::{MarketStateManager, MarketUtils};

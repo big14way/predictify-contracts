@@ -1745,7 +1745,7 @@ impl OracleResult {
 // ===== HELPER FUNCTIONS =====
 
 /// Type validation helpers
-pub mod validation {
+mod validation {
     use super::*;
 
     /// Validate oracle provider
