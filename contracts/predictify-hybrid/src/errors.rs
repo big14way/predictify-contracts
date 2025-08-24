@@ -58,6 +58,15 @@ pub enum Error {
     ConfigurationNotFound = 401,
     NoFeesToCollect = 402,
     FeeAlreadyCollected = 403,
+    CircuitBreakerOpen = 404,
+    CircuitBreakerNotInitialized = 405,
+    CircuitBreakerAlreadyOpen = 406,
+    CircuitBreakerNotOpen = 407,
+    BatchOperationFailed = 408,
+    InvalidBatchSize = 409,
+    BatchProcessingFailed = 410,
+    InvalidOutcomes = 411,
+    InvalidDuration = 412,
     InternalError = 500,
 }
 
@@ -94,6 +103,15 @@ impl Error {
             Error::DisputeFeeDistributionFailed => "Dispute fee distribution failed",
             Error::InvalidQuestion => "Invalid question",
             Error::InvalidState => "Invalid state",
+            Error::CircuitBreakerOpen => "Circuit breaker is open",
+            Error::CircuitBreakerNotInitialized => "Circuit breaker not initialized",
+            Error::CircuitBreakerAlreadyOpen => "Circuit breaker already open",
+            Error::CircuitBreakerNotOpen => "Circuit breaker not open",
+            Error::BatchOperationFailed => "Batch operation failed",
+            Error::InvalidBatchSize => "Invalid batch size",
+            Error::BatchProcessingFailed => "Batch processing failed",
+            Error::InvalidOutcomes => "Invalid outcomes",
+            Error::InvalidDuration => "Invalid duration",
             _ => "Unknown error",
         }
     }
